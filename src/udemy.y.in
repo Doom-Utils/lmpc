@@ -1,0 +1,2853 @@
+/*  lmpc -- the Little Movie Processing Centre
+    Copyright (C) 1994-2000 Uwe Girlich
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    Uwe Girlich
+    Dantestrasse 20
+    04159 Leipzig
+    Deutschland / Germany
+    E-mail: Uwe.Girlich@itp.uni-leipzig.de */
+
+/****************************************************************************\
+|  udemy.y - yacc source for DEM file parsing                                |
+\****************************************************************************/
+
+%{
+  #ifdef HAVE_CONFIG_H
+    #include <config.h>
+  #endif
+  #include <stdlib.h> /* malloc, free */
+  #include <string.h> /* strcat */
+  #ifdef HAVE_MEMORY_H
+    #include <memory.h>
+  #endif
+  #include "tools.h"  /* error */
+  #include "node.h"   /* nodes */
+
+  #define YYSTYPE nodep
+
+  #include "record.h" /* SERVERVERSION */
+  #include "binblock.h"
+  #include "udem.h"
+  #include "uqwd.h"
+  #include "udm2.h"
+
+  typedef struct {
+    int type;
+    int obli;
+  } CO_t;
+
+  void reorder_commands(node* m, CO_t* co, int count);
+
+  extern void yyerror(char* s);
+  extern int yylex(void);
+%}
+
+		/* values */
+%token v_int
+%token v_float
+%token v_string
+
+		/* token */
+@YACCTOKEN@
+%%
+
+input:			dem_input | qwd_input | dm2_input ;
+
+dem_input:		trackblock dem_datablocks ;
+
+qwd_input:		qwd_datablocks ;
+
+dm2_input:		dm2_datablocks | dm2_datablocks dm2_endblock ;
+
+trackblock: TOKEN_TRACK v_string ';' {
+			node_add_down($1,$2);
+			do_block($1);
+			node_delete($1);
+		};
+
+dem_datablocks:	dem_datablock | dem_datablocks dem_datablock;
+
+qwd_datablocks: qwd_datablock | qwd_datablocks qwd_datablock;
+
+dm2_datablocks:	dm2_datablock | dm2_datablocks dm2_datablock;
+
+dem_datablock: TOKEN_BLOCK '{' dem_messages '}' {
+			node_add_down($1,$3);
+			do_block($1);
+			node_delete($1);
+		};
+
+qwd_datablock: qwd_sblock | qwd_cblock | qwd_fblock ;
+
+qwd_sblock: qwd_sgameblock | qwd_sconnlessblock ;
+
+qwd_sgameblock: TOKEN_SBLOCK '{' qwd_t12r qwd_sgamemessages '}' {
+			node_add_next($3,$4);
+			node_add_down($1,$3);
+			do_block($1);
+			node_delete($1);
+		}
+		| TOKEN_SBLOCK '{' qwd_t12r '}' {
+			node_add_down($1,$3);
+			do_block($1);
+			node_delete($1);
+		}
+
+qwd_sconnlessblock: TOKEN_SBLOCK '{' qwd_sconnlessmessages '}' {
+			node_add_down($1,$3);
+			do_block($1);
+			node_delete($1);
+		};
+
+qwd_cblock: TOKEN_CBLOCK '{' qwd_cmessages '}' {
+			CO_t cblock_cs[] = {
+			  { TOKEN_TIME,      1 },
+			  { TOKEN_LOAD,      1 },
+			  { TOKEN_ANGLES,    1 },
+			  { TOKEN_SPEED,     1 },
+			  { TOKEN_FIRE,      0 },
+			  { TOKEN_JUMP,      0 },
+			  { TOKEN_FLAG,      0 },
+			  { TOKEN_IMPULSE,   0 },
+			  { TOKEN_UK_ANGLES, 1 }
+			};
+			node_add_down($1,$3);
+			reorder_commands($1, cblock_cs, arraylength(cblock_cs));
+			do_block($1);
+			node_delete($1);
+		};
+
+qwd_fblock: TOKEN_FBLOCK '{' qwd_t12r '}' {
+			node_add_down($1,$3);
+			do_block($1);
+			node_delete($1);
+		};
+
+dm2_datablock: dm2_realdatablock | dm2_betweenblock;
+
+dm2_realdatablock: TOKEN_BLOCK '{' dm2_messages '}' {
+			node_add_down($1,$3);
+			do_block($1);
+			node_delete($1);
+		};
+
+dm2_betweenblock: TOKEN_BETWEENBLOCK ';' {
+			do_block($1);
+			node_delete($1);
+		};
+
+dm2_endblock: TOKEN_ENDBLOCK ';' {
+			do_block($1);
+			node_delete($1);
+		};
+		
+dem_messages: m_camera {
+			$$=$1;
+		}
+		| m_camera dem_o_messages {
+			$$=node_add_next($1,$2);
+		}
+		| dem_o_messages m_camera {
+			$$=node_add_next($2,$1);
+		}
+		| dem_o_messages m_camera dem_o_messages {
+			$$=node_add_next($2,$1);
+			node_add_next($$,$3);
+		}
+
+dem_o_messages: dem_message {
+			$$=$1;
+		}
+		| dem_o_messages dem_message {
+			$$=node_add_next($1,$2);
+		};
+
+qwd_sgamemessages: qwd_sgamemessage { $$=$1; }
+		| qwd_sgamemessages qwd_sgamemessage
+			{ $$=node_add_next($1,$2); };
+
+qwd_sconnlessmessages: m_time qwd_connless { $$=node_add_next($1,$2); }
+		| qwd_connless m_time { $$=node_add_next($2,$1); } ;
+
+qwd_connless: TOKEN_CONNLESS '{' qwd_sconnlessmessage '}' {
+			$$=node_add_down($1,$3); } ;
+
+qwd_cmessages: qwd_cmessage { $$=$1; }
+		| qwd_cmessages qwd_cmessage
+			{ $$=node_add_next($1,$2); };
+
+qwd_t12r: qwd_mcs_t12r {
+			CO_t t12r_cs[] = {
+			  { TOKEN_TIME,       1 },
+			  { TOKEN_SEQ1,       1 },
+			  { TOKEN_SEQ2,       1 },
+			  { TOKEN_RELIABLE,   0 },
+			};
+			node* a = node_init(H_NOTHING,$1,0);
+			reorder_commands(a,t12r_cs,arraylength(t12r_cs));
+			$$=$1;
+			a->down=NULL;
+			node_delete(a);
+		};
+
+qwd_mcs_t12r: qwd_mc_t12r { $$=$1; }
+		| qwd_mcs_t12r qwd_mc_t12r { $$=node_add_next($1,$2); }
+
+qwd_mc_t12r: m_time
+		| m_seq1
+		| m_seq2
+		| m_reliable
+		;
+
+dm2_messages: dm2_anycastmessage {
+			$$=$1;
+		}
+		| dm2_messages dm2_anycastmessage {
+			$$=node_add_next($1,$2);
+		};
+
+dm2_anycastmessage: m_unicast dm2_message {
+			$$=node_add_next($1,$2);
+		}
+		| dm2_message {
+			$$=$1;
+		};
+
+dem_message: m_unknown  { $$=$1; }
+		| m_bad { $$=$1; }
+		| m_nop { $$=$1; }
+		| m_disconnect { $$=$1; }
+		| dem_m_updatestat { $$=$1; }
+		| m_version { $$=$1; }
+		| m_setview { $$=$1; }
+		| dem_m_sound { $$=$1; }
+		| m_time { $$=$1; }
+		| dem_m_print { $$=$1; }
+		| m_stufftext { $$=$1; }
+		| m_setangle { $$=$1; }
+		| dem_m_serverinfo { $$=$1; }
+		| m_lightstyle { $$=$1; }
+		| m_updatename { $$=$1; }
+		| m_updatefrags { $$=$1; }
+		| m_clientdata { $$=$1; }
+		| dem_m_stopsound { $$=$1; }
+		| m_updatecolors { $$=$1; }
+		| m_particle { $$=$1; }
+		| m_damage { $$=$1; }
+		| dem_m_spawnstatic { $$=$1; }
+		| m_spawnbinary { $$=$1; }
+		| dem_m_spawnbaseline { $$=$1; }
+		| dem_m_temp_entity { $$=$1; }
+		| m_setpause { $$=$1; }
+		| m_signonnum { $$=$1; }
+		| m_centerprint { $$=$1; }
+		| m_killedmonster { $$=$1; }
+		| m_foundsecret { $$=$1; }
+		| m_spawnstaticsound { $$=$1; }
+		| dem_m_intermission { $$=$1; }
+		| m_finale { $$=$1; }
+		| dem_m_cdtrack { $$=$1; }
+		| m_sellscreen { $$=$1; }
+		| m_cutscene { $$=$1; }
+		| m_updateentity { $$=$1; };
+
+qwd_sgamemessage: m_unknown
+		| m_bad
+		| m_disconnect
+		| qwd_m_updatestat
+		| qwd_m_sound
+		| qwd_dm2_m_print
+		| m_stufftext
+		| m_setangle
+		| qwd_m_serverdata
+		| m_lightstyle
+		| m_updatefrags
+		| qwd_m_stopsound
+		| m_damage
+		| qwd_m_spawnstatic
+		| qwd_m_spawnbaseline
+		| qwd_m_temp_entity
+		| m_setpause
+		| m_centerprint
+		| m_killedmonster
+		| m_foundsecret
+		| m_spawnstaticsound
+		| qwd_m_intermission
+		| m_finale
+		| qwd_m_cdtrack
+		| m_sellscreen
+		| m_smallkick
+		| m_bigkick
+		| m_updateping
+		| m_updateentertime
+		| m_updatestatlong
+		| qwd_m_muzzleflash
+		| m_updateuserinfo
+		| m_download
+		| qwd_m_playerinfo
+		| m_nails
+		| m_choke
+		| m_modellist
+		| m_soundlist
+		| qwd_m_packetentities
+		| qwd_m_deltapacketentities
+		| m_maxspeed
+		| m_entgravity
+		| m_setinfo
+		| qwd_m_serverinfo
+		| m_updatepl
+		;
+
+qwd_sconnlessmessage: m_unknown
+		| connless_m_disconnect
+		| m_client_command
+		| m_challenge
+		| m_connect
+		| m_ping
+		| m_console
+		;
+
+qwd_cmessage: m_time
+		| c_load { $$=$1; $$->down->hint=H_LONG; }
+		| m_angles
+		| m_speed
+		| c_fire
+		| c_jump
+		| c_flag
+		| c_impulse
+		| m_uk_angles
+		;
+
+dm2_message: m_unknown  { $$=$1; }
+		| m_bad { $$=$1; }
+		| dm2_m_muzzleflash { $$=$1; }
+		| m_muzzlflash2 { $$=$1; }
+		| dm2_m_temp_entity { $$=$1; }
+		| m_layout { $$=$1; }
+		| m_inventory { $$=$1; }
+		| m_nop { $$=$1; }
+		| m_disconnect { $$=$1; }
+		| m_reconnect { $$=$1; }
+		| dm2_m_sound { $$=$1; }
+		| qwd_dm2_m_print { $$=$1; }
+		| m_stufftext { $$=$1; }
+		| dm2_m_serverdata { $$=$1; }
+		| m_configstring { $$=$1; }
+		| dm2_m_spawnbaseline { $$=$1; }
+		| m_centerprint { $$=$1; }
+		| m_download { $$=$1; }
+		| dm2_m_playerinfo { $$=$1; }
+		| dm2_m_packetentities { $$=$1; }
+		| dm2_m_deltapacketentities { $$=$1; }
+		| m_frame { $$=$1; }
+
+
+m_camera: TOKEN_CAMERA floatvector ';' {
+			$$=node_add_down($1,$2);
+		};
+
+m_unknown: TOKEN_UNKNOWN '{' mcs_unknown '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_UNKNOWN;
+		};
+
+mcs_unknown: c_id c_data { $$=node_add_next($1,$2); }
+		| c_data c_id { $$=node_add_next($2,$1); };
+
+m_bad: TOKEN_BAD ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_nop: TOKEN_NOP ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_disconnect: TOKEN_DISCONNECT ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+connless_m_disconnect: TOKEN_DISCONNECT v_string ';' {
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_reconnect: TOKEN_RECONNECT ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+dem_m_updatestat: TOKEN_UPDATESTAT '{' mcs_updatestat '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+qwd_m_updatestat: TOKEN_UPDATESTAT '{' mcs_updatestat '}' {
+			$3->next->down->hint=H_BYTE;
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_updatestat: c_index c_value { $$=node_add_next($1,$2); }
+		| c_value c_index { $$=node_add_next($2,$1); };
+
+m_version: TOKEN_VERSION v_int ';' {
+			$2->hint = H_LONG;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_setview: TOKEN_SETVIEW v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE; 
+		};
+
+dem_m_sound: TOKEN_SOUND '{' dem_qwd_mcs_sound '}' {
+			CO_t sound_cs[] = {
+			  { TOKEN_VOL,         0 },
+			  { TOKEN_ATTENUATION, 0 },
+			  { TOKEN_CHANNEL,     1 },
+			  { TOKEN_ENTITY,      1 },
+			  { TOKEN_SOUNDNUM,    1 },
+			  { TOKEN_ORIGIN,      1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_DEM_SOUND;
+			reorder_commands($$,sound_cs,arraylength(sound_cs));
+        };
+
+qwd_m_sound: TOKEN_SOUND '{' dem_qwd_mcs_sound '}' {
+			CO_t sound_cs[] = {
+			  { TOKEN_CHANNEL,     1 },
+			  { TOKEN_ENTITY,      1 },
+			  { TOKEN_VOL,         0 },
+			  { TOKEN_ATTENUATION, 0 },
+			  { TOKEN_SOUNDNUM,    1 },
+			  { TOKEN_ORIGIN,      1 }
+			};
+            		$$=node_add_down($1,$3);
+			$$->hint = H_QWD_SOUND;
+			reorder_commands($$,sound_cs,arraylength(sound_cs));
+        };
+
+dem_qwd_mcs_sound: dem_qwd_mc_sound {
+			$$=$1;
+		}
+		| dem_qwd_mcs_sound dem_qwd_mc_sound {
+			$$=node_add_next($1,$2);
+		};
+
+dem_qwd_mc_sound: c_vol { $$=$1; }
+		| c_attenuation { $$=$1; }
+		| c_channel { $$=$1; }
+		| c_entity { $$=$1; }
+		| c_soundnum { $$=$1; }
+		| c_origin { $$=$1; };
+
+dm2_m_sound: TOKEN_SOUND '{' dm2_mcs_sound '}' {
+			CO_t sound_cs[] = {
+			  { TOKEN_UNKNOWN_MASK_BITS, 0 },
+			  { TOKEN_SOUNDNUM,    1 },
+			  { TOKEN_VOL,         0 },
+			  { TOKEN_ATTENUATION, 0 },
+			  { TOKEN_TIMEOFS,     0 },
+			  { TOKEN_CHANNEL,     0 },
+			  { TOKEN_ENTITY,      0 },
+			  { TOKEN_ORIGIN,      0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_DM2_SOUND;
+			reorder_commands($$,sound_cs,arraylength(sound_cs));
+        };
+
+dm2_mcs_sound: dm2_mc_sound { $$=$1; }
+		| dm2_mcs_sound dm2_mc_sound { $$=node_add_next($1,$2); };
+
+dm2_mc_sound: c_unknown_mask_bits
+		| c_soundnum
+		| c_vol
+		| c_attenuation
+		| c_timeofs
+		| c_channel
+		| c_entity
+		| c_origin;
+
+m_time: TOKEN_TIME time ';' {
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+dem_m_print: TOKEN_PRINT v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+qwd_dm2_m_print: TOKEN_PRINT '{' qwd_dm2_mcs_print '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+qwd_dm2_mcs_print: c_level c_string { $$=node_add_next($1,$2); }
+		| c_string c_level { $$=node_add_next($2,$1); };
+
+m_console: TOKEN_CONSOLE v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_stufftext: TOKEN_STUFFTEXT v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_setangle: TOKEN_SETANGLE floatvector ';' {
+			node_add_hint_next($2,H_ANGLE);
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+dem_m_serverinfo: TOKEN_SERVERINFO '{' dem_mcs_serverinfo '}' {
+			CO_t serverinfo_cs[] = {
+			  { TOKEN_SERVERVERSION, 1 },
+			  { TOKEN_MAXCLIENTS,    1 },
+			  { TOKEN_MULTI,         1 },
+			  { TOKEN_MAPNAME,       1 },
+			  { TOKEN_MODELS,        1 },
+			  { TOKEN_SOUNDS,        1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, serverinfo_cs, arraylength(serverinfo_cs));
+		};
+
+dem_mcs_serverinfo: dem_mc_serverinfo {	$$=$1;	}
+		| dem_mcs_serverinfo dem_mc_serverinfo {
+			$$=node_add_next($1,$2);
+		};
+
+dem_mc_serverinfo: c_serverversion { $$=$1; }
+		| c_maxclients { $$=$1; }
+		| c_multi { $$=$1; }
+		| c_mapname { $$=$1; }
+		| c_models { $$=$1; }
+		| c_sounds { $$=$1; };
+
+qwd_m_serverdata: TOKEN_SERVERDATA '{' qwd_mcs_serverdata '}' {
+			CO_t serverdata_cs[] = {
+			  { TOKEN_SERVERVERSION, 1 },
+			  { TOKEN_AGE,           1 },
+			  { TOKEN_GAME,          1 },
+			  { TOKEN_CLIENT,        1 },
+			  { TOKEN_MAPNAME,       1 },
+			  { TOKEN_UK_FLOATS,     1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, serverdata_cs, arraylength(serverdata_cs));
+		};
+
+qwd_mcs_serverdata: qwd_mc_serverdata {
+			$$=$1;
+		}
+		| qwd_mcs_serverdata qwd_mc_serverdata {
+			$$=node_add_next($1,$2);
+		};
+
+qwd_mc_serverdata: c_serverversion { $$=$1; }
+		| c_age { $$=$1; }
+		| c_game { $$=$1; }
+		| c_client { $1->down->hint=H_BYTE; $$=$1; }
+		| c_mapname { $$=$1; };
+		| c_uk_floats { $$=$1; };
+
+dm2_m_serverdata: TOKEN_SERVERDATA '{' dm2_mcs_serverdata '}' {
+			CO_t serverdata_cs[] = {
+			  { TOKEN_SERVERVERSION, 1 },
+			  { TOKEN_KEY,           1 },
+			  { TOKEN_ISDEMO,        1 },
+			  { TOKEN_GAME,          1 },
+			  { TOKEN_CLIENT,        1 },
+			  { TOKEN_MAPNAME,       1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, serverdata_cs, arraylength(serverdata_cs));
+		};
+
+dm2_mcs_serverdata: dm2_mc_serverdata {
+			$$=$1;
+		}
+		| dm2_mcs_serverdata dm2_mc_serverdata {
+			$$=node_add_next($1,$2);
+		};
+
+dm2_mc_serverdata: c_serverversion { $$=$1; }
+		| c_key { $$=$1; }
+		| c_isdemo { $$=$1; }
+		| c_game { $$=$1; }
+		| c_client { $$=$1; }
+		| c_mapname { $$=$1; };
+
+m_lightstyle: TOKEN_LIGHTSTYLE '{' mcs_lightstyle '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_lightstyle: c_style c_string {
+			$$=node_add_next($1,$2);
+		}
+		| c_string c_style {
+			$$=node_add_next($2,$1);
+		};
+
+m_configstring: TOKEN_CONFIGSTRING '{' mcs_configstring '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_configstring: c_index c_string {
+			$1->down->hint = H_SHORT;
+			$$=node_add_next($1,$2);
+		}
+		| c_string c_index {
+			$2->down->hint = H_SHORT;
+			$$=node_add_next($2,$1);
+		};
+
+m_updatename: TOKEN_UPDATENAME '{' mcs_updatename '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_updatename: c_player c_netname { $$=node_add_next($1,$2); }
+		| c_netname c_player { $$=node_add_next($2,$1);	};
+
+m_updatefrags: TOKEN_UPDATEFRAGS '{' mcs_updatefrags '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_updatefrags: c_player c_frags { $$=node_add_next($1,$2); }
+		| c_frags c_player { $$=node_add_next($2,$1); };
+
+m_clientdata: TOKEN_CLIENTDATA '{' mcs_clientdata '}' {
+			CO_t clientdata_cs[] = {
+			  { TOKEN_VIEW_OFS_Z,   0 },
+			  { TOKEN_PUNCHANGLE_X, 0 },
+			  { TOKEN_ANGLES_1,     0 },
+			  { TOKEN_ANGLES_2,     0 },
+			  { TOKEN_ANGLES_3,     0 },
+			  { TOKEN_VEL_X,        0 },
+			  { TOKEN_VEL_Y,        0 },
+			  { TOKEN_VEL_Z,        0 },
+			  { TOKEN_WEAPONS,      0 },
+			  { TOKEN_AMMOTYPE,     0 },
+			  { TOKEN_ARMORTYPE,    0 },
+			  { TOKEN_MEGAHEALTH,   0 },
+			  { TOKEN_KEYS,         0 },
+			  { TOKEN_POWER_UPS,    0 },
+			  { TOKEN_UK_ITEMS_B23, 0 },
+			  { TOKEN_UK_ITEMS_B24, 0 },
+			  { TOKEN_UK_ITEMS_B25, 0 },
+			  { TOKEN_UK_ITEMS_B26, 0 },
+			  { TOKEN_UK_ITEMS_B27, 0 },
+			  { TOKEN_RUNES,        0 },
+			  { TOKEN_UK_BIT_B10,   0 },
+			  { TOKEN_UK_BIT_B11,   0 },
+			  { TOKEN_WEAPONFRAME,  0 },
+			  { TOKEN_ARMORVALUE,   0 },
+			  { TOKEN_WEAPONMODEL,  0 },
+			  { TOKEN_HEALTH,       1 },
+			  { TOKEN_CURRENTAMMO,  1 },
+			  { TOKEN_AMMO_SHELLS,  1 },
+			  { TOKEN_AMMO_NAILS,   1 },
+			  { TOKEN_AMMO_ROCKETS, 1 },
+			  { TOKEN_AMMO_CELLS,   1 },
+			  { TOKEN_WEAPON,       1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_DEM_CLIENTDATA;
+			reorder_commands($$, clientdata_cs, arraylength(clientdata_cs));
+		};
+
+mcs_clientdata: mc_clientdata {
+			$$=$1;
+		}
+		| mcs_clientdata mc_clientdata {
+			$$=node_add_next($1,$2);
+		};
+
+mc_clientdata: c_view_ofs_z { $$=$1; }
+		| c_punchangle_x { $$=$1; }
+		| c_angles_1 { $$=$1; }
+		| c_angles_2 { $$=$1; }
+		| c_angles_3 { $$=$1; }
+		| c_vel_x { $$=$1; }
+		| c_vel_y { $$=$1; }
+		| c_vel_z { $$=$1; }
+		| c_weapons { $$=$1; }
+		| c_ammotype { $$=$1; }
+		| c_armortype { $$=$1; }
+		| c_megahealth { $$=$1; }
+		| c_keys { $$=$1; }
+		| c_power_ups { $$=$1; }
+		| c_uk_items_b23 { $$=$1; }
+		| c_uk_items_b24 { $$=$1; }
+		| c_uk_items_b25 { $$=$1; }
+		| c_uk_items_b26 { $$=$1; }
+		| c_uk_items_b27 { $$=$1; }
+		| c_runes { $$=$1; }
+		| c_uk_bit_b10 { $$=$1; }
+		| c_uk_bit_b11 { $$=$1; }
+		| c_weaponframe { $$=$1; }
+		| c_armorvalue { $$=$1; }
+		| c_weaponmodel { $$=$1; }
+		| c_health { $$=$1; }
+		| c_currentammo { $$=$1; }
+		| c_ammo_shells { $$=$1; }
+		| c_ammo_nails { $$=$1; }
+		| c_ammo_rockets { $$=$1; }
+		| c_ammo_cells{ $$=$1; }
+		| c_weapon { $$=$1; };
+
+qwd_m_playerinfo: TOKEN_PLAYERINFO '{' qwd_mcs_playerinfo '}' {
+			CO_t playerinfo_cs[] = {
+			  { TOKEN_UNKNOWN_MASK_BITS, 0 },
+			  { TOKEN_PLAYER,       1 },
+			  { TOKEN_ORIGIN,       1 },
+			  { TOKEN_FRAME,        1 },
+			  { TOKEN_PING,         0 },
+			  { TOKEN_ANGLES_1,     0 },
+			  { TOKEN_ANGLES_2,     0 },
+			  { TOKEN_ANGLES_3,     0 },
+			  { TOKEN_SPEED_X,      0 },
+			  { TOKEN_SPEED_Y,      0 },
+			  { TOKEN_SPEED_Z,      0 },
+			  { TOKEN_FIRE,         0 },
+			  { TOKEN_JUMP,         0 },
+			  { TOKEN_FLAG,         0 },
+			  { TOKEN_IMPULSE,      0 },
+			  { TOKEN_LOAD,         0 },
+			  { TOKEN_CSPEED_X,     0 },
+			  { TOKEN_CSPEED_Y,     0 },
+			  { TOKEN_CSPEED_Z,     0 },
+			  { TOKEN_MODELINDEX,   0 },
+			  { TOKEN_UK_BYTE6,     0 },
+			  { TOKEN_WEAPON,       0 },
+			  { TOKEN_WEAPONFRAME,  0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_QWD_PLAYERINFO;
+			reorder_commands($$, playerinfo_cs, arraylength(playerinfo_cs));
+		};
+
+qwd_mcs_playerinfo: qwd_mc_playerinfo {
+			$$=$1;
+		}
+		| qwd_mcs_playerinfo qwd_mc_playerinfo {
+			$$=node_add_next($1,$2);
+		};
+
+qwd_mc_playerinfo: c_unknown_mask_bits
+		| c_player
+		| c_origin
+		| c_frame
+		| c_ping_playerinfo
+		| c_angles_1
+		| c_angles_2
+		| c_angles_3
+		| c_speed_x
+		| c_speed_y
+		| c_speed_z
+		| c_fire
+		| c_jump
+		| c_flag
+		| c_impulse
+		| c_load
+		| c_cspeed_x
+		| c_cspeed_y
+		| c_cspeed_z
+		| c_modelindex
+		| c_uk_byte6
+		| c_weapon
+		| c_weaponframe
+		;
+
+dm2_m_playerinfo: TOKEN_PLAYERINFO '{' dm2_mcs_playerinfo '}' {
+			CO_t playerinfo_cs[] = {
+			  { TOKEN_PM_TYPE,      0 },
+			  { TOKEN_ORIGIN,       0 },
+			  { TOKEN_VELOCITY,     0 },
+			  { TOKEN_PM_TIME,      0 },
+			  { TOKEN_PM_FLAGS,     0 },
+			  { TOKEN_GRAVITY,      0 },
+			  { TOKEN_DELTA_ANGLES, 0 },
+			  { TOKEN_VIEWOFFSET,   0 },
+			  { TOKEN_VIEWANGLES,   0 },
+			  { TOKEN_KICK_ANGLES,  0 },
+			  { TOKEN_GUNINDEX,     0 },
+			  { TOKEN_GUNFRAME,     0 },
+			  { TOKEN_GUNOFFSET,    0 },
+			  { TOKEN_GUNANGLES,    0 },
+			  { TOKEN_BLEND,        0 },
+			  { TOKEN_FOV,          0 },
+			  { TOKEN_RDFLAGS,      0 },
+			  { TOKEN_STATS,        0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_DM2_PLAYERINFO;
+			reorder_commands($$, playerinfo_cs, arraylength(playerinfo_cs));
+		}
+		| TOKEN_PLAYERINFO ';' {
+			$$=$1;
+			$$->hint = H_DM2_PLAYERINFO;
+		};
+
+dm2_mcs_playerinfo: dm2_mc_playerinfo {
+			$$=$1;
+		}
+		| dm2_mcs_playerinfo dm2_mc_playerinfo {
+			$$=node_add_next($1,$2);
+		};
+
+dm2_mc_playerinfo: c_pm_type { $$=$1; }
+		| c_origin { $$=$1; }
+		| c_velocity { $$=$1; }
+		| c_pm_time { $$=$1; }
+		| c_pm_flags { $$=$1; }
+		| c_gravity { $$=$1; }
+		| c_delta_angles { $$=$1; }
+		| c_viewoffset { $$=$1; }
+		| c_viewangles { $$=$1; }
+		| c_kick_angles { $$=$1; }
+		| c_gunindex { $$=$1; }
+		| c_gunframe { $$=$1; }
+		| c_gunoffset { $$=$1; }
+		| c_gunangles { $$=$1; }
+		| c_blend { $$=$1; }
+		| c_fov { $$=$1; }
+		| c_rdflags { $$=$1; }
+		| c_stats { $$=$1; };
+
+dem_m_stopsound: dem_m_old_stopsound | dem_m_new_stopsound ;
+
+dem_m_old_stopsound: TOKEN_STOPSOUND v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+dem_m_new_stopsound: TOKEN_STOPSOUND '{' mcs_stopsound '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_DEM_STOPSOUND;
+		};
+
+qwd_m_stopsound: TOKEN_STOPSOUND '{' mcs_stopsound '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_QWD_STOPSOUND;
+		};
+
+mcs_stopsound: c_channel c_entity { $$=node_add_next($1,$2); }
+		| c_entity c_channel { $$=node_add_next($2,$1);	};
+
+m_updatecolors: TOKEN_UPDATECOLORS '{' mcs_updatecolors '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_DEM_UPDATECOLORS;
+		};
+
+mcs_updatecolors: c_player c_colors { $$=node_add_next($1,$2); }
+		| c_colors c_player { $$=node_add_next($2,$1); };
+
+m_particle: TOKEN_PARTICLE '{' mcs_particle '}' {
+			CO_t particle_cs[] = {
+			  { TOKEN_ORIGIN, 1 },
+			  { TOKEN_VEL,    1 },
+			  { TOKEN_COUNT,  1 },
+			  { TOKEN_COLOR,  1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, particle_cs, arraylength(particle_cs));
+		};
+
+mcs_particle: mc_particle { $$=$1; }
+		| mcs_particle mc_particle { $$=node_add_next($1,$2); };
+
+mc_particle: c_origin { $$=$1; }
+		| c_vel { $$=$1; }
+		| c_color { $$=$1; }
+		| c_count { $$=$1; };
+
+m_damage: TOKEN_DAMAGE '{' mcs_damage '}' {
+			CO_t damage_cs[] = {
+			  { TOKEN_SAVE,   1 },
+			  { TOKEN_TAKE,   1 }, 
+			  { TOKEN_ORIGIN, 1 }
+            };
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$,damage_cs,arraylength(damage_cs));
+		};
+
+mcs_damage: mc_damage { $$=$1; }
+		| mcs_damage mc_damage { $$=node_add_next($1,$2); };
+
+mc_damage: c_save { $$=$1; }
+		| c_take { $$=$1; }
+		| c_origin { $$=$1; };
+
+dem_m_spawnstatic: TOKEN_SPAWNSTATIC '{' mcs_spawnstatic '}' {
+			CO_t spawnstatic_cs[] = {
+			  { TOKEN_DEFAULT_MODELINDEX, 1 },
+			  { TOKEN_DEFAULT_FRAME,      1 }, 
+			  { TOKEN_DEFAULT_COLORMAP,   1 }, 
+			  { TOKEN_DEFAULT_SKIN,       1 }, 
+			  { TOKEN_DEFAULT_ORIGIN,     1 }, 
+			  { TOKEN_DEFAULT_ANGLES,     1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_DEM_SPAWNSTATIC; 
+			reorder_commands($$,spawnstatic_cs, arraylength(spawnstatic_cs));
+		};
+
+qwd_m_spawnstatic: TOKEN_SPAWNSTATIC '{' mcs_spawnstatic '}' {
+			CO_t spawnstatic_cs[] = {
+			  { TOKEN_DEFAULT_MODELINDEX, 1 },
+			  { TOKEN_DEFAULT_FRAME,      1 }, 
+			  { TOKEN_DEFAULT_COLORMAP,   1 }, 
+			  { TOKEN_DEFAULT_SKIN,       1 }, 
+			  { TOKEN_DEFAULT_ORIGIN,     1 }, 
+			  { TOKEN_DEFAULT_ANGLES,     1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_QWD_SPAWNSTATIC; 
+			reorder_commands($$,spawnstatic_cs, arraylength(spawnstatic_cs));
+		};
+
+mcs_spawnstatic: mc_spawnstatic {
+			$$=$1;
+		}
+		| mcs_spawnstatic mc_spawnstatic {
+			$$=node_add_next($1,$2);
+		};
+
+mc_spawnstatic: c_default_modelindex { $$=$1; }
+		| c_default_frame { $$=$1; }
+		| c_default_colormap { $$=$1; }
+		| c_default_skin { $$=$1; }
+		| c_default_origin { $$=$1; }
+		| c_default_angles { $$=$1; };
+
+m_spawnbinary: TOKEN_SPAWNBINARY ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+dem_m_spawnbaseline: TOKEN_SPAWNBASELINE '{' dem_qwd_mcs_spawnbaseline '}' {
+			CO_t spawnbaseline_cs[] = {
+			  { TOKEN_ENTITY,             1 },
+			  { TOKEN_DEFAULT_MODELINDEX, 1 },
+			  { TOKEN_DEFAULT_FRAME,      1 }, 
+			  { TOKEN_DEFAULT_COLORMAP,   1 }, 
+			  { TOKEN_DEFAULT_SKIN,       1 }, 
+			  { TOKEN_DEFAULT_ORIGIN,     1 }, 
+			  { TOKEN_DEFAULT_ANGLES,     1 }
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_DEM_SPAWNBASELINE; 
+			reorder_commands($$,spawnbaseline_cs,arraylength(spawnbaseline_cs));
+		};
+
+qwd_m_spawnbaseline: TOKEN_SPAWNBASELINE '{' dem_qwd_mcs_spawnbaseline '}' {
+			CO_t spawnbaseline_cs[] = {
+			  { TOKEN_ENTITY,             1 },
+			  { TOKEN_DEFAULT_MODELINDEX, 1 },
+			  { TOKEN_DEFAULT_FRAME,      1 }, 
+			  { TOKEN_DEFAULT_COLORMAP,   1 }, 
+			  { TOKEN_DEFAULT_SKIN,       1 }, 
+			  { TOKEN_DEFAULT_ORIGIN,     1 }, 
+			  { TOKEN_DEFAULT_ANGLES,     1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_QWD_SPAWNBASELINE; 
+			reorder_commands($$,spawnbaseline_cs,arraylength(spawnbaseline_cs));
+		};
+
+dem_qwd_mcs_spawnbaseline: dem_qwd_mc_spawnbaseline {
+			$$=$1;
+		}
+		| dem_qwd_mcs_spawnbaseline dem_qwd_mc_spawnbaseline {
+			$$=node_add_next($1,$2);
+		};
+
+dem_qwd_mc_spawnbaseline: c_entity { $$=$1; }
+		| c_default_modelindex { $$=$1; }
+		| c_default_frame{ $$=$1; }
+		| c_default_colormap { $$=$1; }
+		| c_default_skin { $$=$1; }
+		| c_default_origin { $$=$1; }
+		| c_default_angles { $$=$1; };
+
+dm2_m_spawnbaseline: TOKEN_SPAWNBASELINE '{' dm2_mcs_spawnbaseline '}' {
+			CO_t spawnbaseline_cs[] = {
+			  { TOKEN_UNKNOWN_MASK_BITS,	0 },
+			  { TOKEN_ENTITY,             1 },
+			  { TOKEN_REMOVE,             0 },
+			  { TOKEN_MODELINDEX,         0 },
+			  { TOKEN_MODELINDEX2,        0 },
+			  { TOKEN_MODELINDEX3,        0 },
+			  { TOKEN_MODELINDEX4,        0 },
+			  { TOKEN_FRAME,              0 }, 
+			  { TOKEN_SKIN,               0 }, 
+			  { TOKEN_VWEP,               0 },
+			  { TOKEN_EFFECTS,            0 }, 
+			  { TOKEN_RENDERFX,           0 }, 
+			  { TOKEN_ORIGIN_X,           0 }, 
+			  { TOKEN_ORIGIN_Y,           0 }, 
+			  { TOKEN_ORIGIN_Z,           0 }, 
+			  { TOKEN_ANGLES_1,           0 }, 
+			  { TOKEN_ANGLES_2,           0 }, 
+			  { TOKEN_ANGLES_3,           0 }, 
+			  { TOKEN_OLD_ORIGIN,         0 }, 
+			  { TOKEN_SOUND,              0 }, 
+			  { TOKEN_EVENT,              0 }, 
+			  { TOKEN_SOLID,              0 }
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_DM2_SPAWNBASELINE; 
+			reorder_commands($$,spawnbaseline_cs,arraylength(spawnbaseline_cs));
+		};
+
+dm2_mcs_spawnbaseline: dm2_mc_spawnbaseline {
+			$$=$1;
+		}
+		| dm2_mcs_spawnbaseline dm2_mc_spawnbaseline {
+			$$=node_add_next($1,$2);
+		};
+
+dm2_mc_spawnbaseline: c_unknown_mask_bits { $$=$1; }
+		| c_entity { $$=$1; $1->down->hint=H_SB; }
+		| c_remove { $$=$1; }
+		| c_modelindex { $$=$1; }
+		| c_modelindex2 { $$=$1; }
+		| c_modelindex3 { $$=$1; }
+		| c_modelindex4 { $$=$1; }
+		| c_frame { $$=$1; }
+		| c_skin { $$=$1; }
+		| c_vwep { $$=$1; }
+		| c_effects { $$=$1; }
+		| c_renderfx { $$=$1; }
+		| c_origin_x { $$=$1; }
+		| c_origin_y { $$=$1; }
+		| c_origin_z { $$=$1; }
+		| c_angles_1 { $$=$1; }
+		| c_angles_2 { $$=$1; }
+		| c_angles_3 { $$=$1; }
+		| c_old_origin { $$=$1; }
+		| c_sound { $$=$1; }
+		| c_event { $$=$1; }
+		| c_solid { $$=$1; };
+
+qwd_m_packetentities: TOKEN_PACKETENTITIES '{' qwd_mcs_packetentities '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_QWD_PACKETENTITIES;
+		}
+		| TOKEN_PACKETENTITIES ';' {
+			$$=$1;
+			$$->hint = H_QWD_PACKETENTITIES;
+		};
+
+qwd_mcs_packetentities: qwd_m_packetentity {
+			$$=$1;
+		}
+		| qwd_mcs_packetentities qwd_m_packetentity {
+			$$=node_add_next($1,$2);
+		};
+
+qwd_m_packetentity: TOKEN_PACKETENTITY '{' qwd_mcs_packet '}' {
+			CO_t packet_cs[] = {
+			  { TOKEN_ENTITY,             1 },
+			  { TOKEN_REMOVE,             0 },
+			  { TOKEN_MODELINDEX,         0 },
+			  { TOKEN_FRAME,              0 }, 
+			  { TOKEN_COLORMAP,           0 }, 
+			  { TOKEN_SKIN,               0 }, 
+			  { TOKEN_EFFECTS,            0 }, 
+			  { TOKEN_ORIGIN_X,           0 }, 
+			  { TOKEN_ORIGIN_Y,           0 }, 
+			  { TOKEN_ORIGIN_Z,           0 }, 
+			  { TOKEN_ANGLES_1,           0 }, 
+			  { TOKEN_ANGLES_2,           0 }, 
+			  { TOKEN_ANGLES_3,           0 }
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			reorder_commands($$,packet_cs,arraylength(packet_cs));
+		};
+
+qwd_mcs_packet: qwd_mc_packet {
+			$$=$1;
+		}
+		| qwd_mcs_packet qwd_mc_packet {
+			$$=node_add_next($1,$2);
+		};
+
+qwd_mc_packet: c_entity
+		| c_remove
+		| c_modelindex
+		| c_frame
+		| c_colormap
+		| c_skin
+		| c_effects
+		| c_origin_x
+		| c_origin_y
+		| c_origin_z
+		| c_angles_1
+		| c_angles_2
+		| c_angles_3
+		;
+
+qwd_m_deltapacketentities: TOKEN_DELTAPACKETENTITIES '{' qwd_mcs_deltapacketentities '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_QWD_DELTAPACKETENTITIES;
+		};
+
+qwd_mcs_deltapacketentities: c_frame qwd_ms_deltapacketentity {
+			$$=node_add_next($1,$2);
+		}
+		| qwd_ms_deltapacketentity c_frame qwd_ms_deltapacketentity {
+			$$=node_add_next($2,$1);
+			node_add_next($$,$3);
+		}
+		| qwd_ms_deltapacketentity c_frame {
+			$$=node_add_next($2,$1);
+		}
+		| c_frame {
+			$$=$1;
+		};
+
+qwd_ms_deltapacketentity: qwd_m_deltapacketentity {
+			$$=$1;
+		}
+		| qwd_ms_deltapacketentity qwd_m_deltapacketentity {
+			$$=node_add_next($1,$2);
+		};
+
+qwd_m_deltapacketentity: TOKEN_DELTAPACKETENTITY '{' qwd_mcs_packet '}' {
+			CO_t packet_cs[] = {
+			  { TOKEN_ENTITY,             1 },
+			  { TOKEN_REMOVE,             0 },
+			  { TOKEN_MODELINDEX,         0 },
+			  { TOKEN_FRAME,              0 }, 
+			  { TOKEN_COLORMAP,           0 }, 
+			  { TOKEN_SKIN,               0 }, 
+			  { TOKEN_EFFECTS,            0 }, 
+			  { TOKEN_ORIGIN_X,           0 }, 
+			  { TOKEN_ORIGIN_Y,           0 }, 
+			  { TOKEN_ORIGIN_Z,           0 }, 
+			  { TOKEN_ANGLES_1,           0 }, 
+			  { TOKEN_ANGLES_2,           0 }, 
+			  { TOKEN_ANGLES_3,           0 }
+			};
+			$$=node_add_down($1,$3);
+			reorder_commands($$,packet_cs,arraylength(packet_cs));
+		};
+
+dm2_m_packetentities: TOKEN_PACKETENTITIES '{' dm2_mcs_packetentities '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_DM2_PACKETENTITIES;
+		}
+		| TOKEN_PACKETENTITIES ';' {
+			$$=$1;
+			$$->hint = H_DM2_PACKETENTITIES;
+		};
+
+dm2_mcs_packetentities: dm2_m_packetentity {
+			$$=$1;
+		}
+		| dm2_mcs_packetentities dm2_m_packetentity {
+			$$=node_add_next($1,$2);
+		};
+
+dm2_m_packetentity: TOKEN_PACKETENTITY '{' dm2_mcs_spawnbaseline '}' {
+			CO_t spawnbaseline_cs[] = {
+			  { TOKEN_UNKNOWN_MASK_BITS,	0 },
+			  { TOKEN_ENTITY,             1 },
+			  { TOKEN_REMOVE,             0 },
+			  { TOKEN_MODELINDEX,         0 },
+			  { TOKEN_MODELINDEX2,        0 },
+			  { TOKEN_MODELINDEX3,        0 },
+			  { TOKEN_MODELINDEX4,        0 },
+			  { TOKEN_FRAME,              0 }, 
+			  { TOKEN_SKIN,               0 },
+			  { TOKEN_VWEP,	              0 },
+			  { TOKEN_EFFECTS,            0 }, 
+			  { TOKEN_RENDERFX,           0 }, 
+			  { TOKEN_ORIGIN_X,           0 }, 
+			  { TOKEN_ORIGIN_Y,           0 }, 
+			  { TOKEN_ORIGIN_Z,           0 }, 
+			  { TOKEN_ANGLES_1,           0 }, 
+			  { TOKEN_ANGLES_2,           0 }, 
+			  { TOKEN_ANGLES_3,           0 }, 
+			  { TOKEN_OLD_ORIGIN,         0 }, 
+			  { TOKEN_SOUND,              0 }, 
+			  { TOKEN_EVENT,              0 }, 
+			  { TOKEN_SOLID,              0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_DM2_SPAWNBASELINE;
+			reorder_commands($$,spawnbaseline_cs,arraylength(spawnbaseline_cs));
+		};
+
+dem_m_temp_entity: TOKEN_TEMP_ENTITY '{' dem_mcs_temp_entity '}' {
+			CO_t temp_entity_cs[] = {
+			  { TOKEN_ENTITYTYPE,   1 },
+			  { TOKEN_ENTITY,       0 }, 
+			  { TOKEN_ORIGIN,       1 }, 
+			  { TOKEN_TRACE_ENDPOS, 0 },
+			  { TOKEN_COLOR,        0 },
+			  { TOKEN_RANGE,        0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, temp_entity_cs, arraylength(temp_entity_cs));
+		};
+
+dem_mcs_temp_entity: dem_mc_temp_entity {
+			$$=$1;
+		}
+		| dem_mcs_temp_entity dem_mc_temp_entity {
+			$$=node_add_next($1,$2);
+		};
+
+dem_mc_temp_entity: c_entitytype { $$=$1; }
+		| c_entity { $$=$1; }
+		| c_origin { $$=$1; }
+		| c_trace_endpos { $$=$1; }
+		| c_color { $$=$1; }
+		| c_range { $$=$1; };
+
+qwd_m_temp_entity: TOKEN_TEMP_ENTITY '{' qwd_mcs_temp_entity '}' {
+			CO_t temp_entity_cs[] = {
+			  { TOKEN_ENTITYTYPE,   1 },
+			  { TOKEN_ENTITY,       0 }, 
+			  { TOKEN_COUNT,	0 },
+			  { TOKEN_ORIGIN,       1 }, 
+			  { TOKEN_TRACE_ENDPOS, 0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, temp_entity_cs, arraylength(temp_entity_cs));
+		};
+
+qwd_mcs_temp_entity: qwd_mc_temp_entity {
+			$$=$1;
+		}
+		| qwd_mcs_temp_entity qwd_mc_temp_entity {
+			$$=node_add_next($1,$2);
+		};
+
+qwd_mc_temp_entity: c_entitytype { $$=$1; }
+		| c_entity { $$=$1; }
+		| c_count { $$=$1; }
+		| c_origin { $$=$1; }
+		| c_trace_endpos { $$=$1; } ; 
+
+dm2_m_temp_entity: TOKEN_TEMP_ENTITY '{' dm2_mcs_temp_entity '}' {
+			CO_t temp_entity_cs[] = {
+			  { TOKEN_ENTITYTYPE,   1 },
+			  { TOKEN_DEST_ENTITY,	0 },
+			  { TOKEN_ENTITY,       0 },
+			  { TOKEN_NEXTID,	0 }, 
+			  { TOKEN_COUNT,        0 },
+			  { TOKEN_START,        0 }, 
+			  { TOKEN_DEST_ORIGIN,	0 },
+			  { TOKEN_TYPE,		0 },
+			  { TOKEN_ORIGIN,       1 },
+			  { TOKEN_FLASH_ENTITY, 0 }, 
+			  { TOKEN_TRACE_ENDPOS, 0 },
+			  { TOKEN_POS1,         0 }, 
+			  { TOKEN_POS2,         0 }, 
+			  { TOKEN_POS3,         0 }, 
+			  { TOKEN_POS4,         0 }, 
+			  { TOKEN_MOVEDIR,      0 },
+			  { TOKEN_STYLE,	0 },
+			  { TOKEN_PLAT2FLAGS,	0 },
+			  { TOKEN_WAIT,		0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, temp_entity_cs, arraylength(temp_entity_cs));
+		};
+
+dm2_mcs_temp_entity: dm2_mc_temp_entity {
+			$$=$1;
+		}
+		| dm2_mcs_temp_entity dm2_mc_temp_entity {
+			$$=node_add_next($1,$2);
+		};
+
+dm2_mc_temp_entity: c_entitytype { $$=$1; }
+		| c_dest_entity { $$=$1; }
+		| c_entity { $$=$1; }
+		| c_nextid { $$=$1; }
+		| c_count { $$=$1; }
+		| c_start { $$=$1; }
+		| c_dest_origin { $$=$1; }
+		| c_type { $$=$1; }
+		| c_origin { $$=$1; }
+		| c_flash_entity { $$=$1; }
+		| c_trace_endpos { $$=$1; }
+		| c_pos1 { $$=$1; }
+		| c_pos2 { $$=$1; }
+		| c_pos3 { $$=$1; }
+		| c_pos4 { $$=$1; }
+		| c_movedir { $$=$1; }
+		| c_style { $$=$1; }
+		| c_plat2flags { $$=$1; }
+		| c_wait { $$=$1; };
+
+m_setpause: TOKEN_SETPAUSE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_signonnum: TOKEN_SIGNONNUM v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_centerprint: TOKEN_CENTERPRINT v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_killedmonster: TOKEN_KILLEDMONSTER ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_foundsecret: TOKEN_FOUNDSECRET ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_spawnstaticsound: TOKEN_SPAWNSTATICSOUND '{' mcs_spawnstaticsound '}' {
+			CO_t spawnstaticsound_cs[] = {
+			  { TOKEN_ORIGIN,      1 },
+			  { TOKEN_SOUNDNUM,    1 },
+			  { TOKEN_VOL,         1 }, 
+			  { TOKEN_ATTENUATION, 1 } 
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$, spawnstaticsound_cs, arraylength(spawnstaticsound_cs));
+		};
+
+mcs_spawnstaticsound: mc_spawnstaticsound {
+			$$=$1;
+		}
+		| mcs_spawnstaticsound mc_spawnstaticsound {
+			$$=node_add_next($1,$2);
+		};
+
+mc_spawnstaticsound: c_origin { $$=$1; }
+		| c_soundnum { $$=$1; }
+		| c_vol { $$=$1; }
+		| c_attenuation { $$=$1; };
+
+dem_m_intermission: TOKEN_INTERMISSION ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+qwd_m_intermission: TOKEN_INTERMISSION '{' mcs_intermission '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_intermission: c_origin m_angles {
+			node_add_hint_next($2->down,H_ANGLE);
+			$$=node_add_next($1,$2);
+		}
+		| m_angles c_origin {
+			node_add_hint_next($1->down,H_ANGLE);
+			$$=node_add_next($2,$1);
+		};
+
+m_finale: TOKEN_FINALE v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+dem_m_cdtrack: TOKEN_CDTRACK '{' dem_mcs_cdtrack '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};	
+
+dem_mcs_cdtrack: c_fromtrack c_totrack {
+			$$=node_add_next($1,$2);
+		}
+		| c_totrack c_fromtrack {
+			$$=node_add_next($2,$1);
+		};
+
+qwd_m_cdtrack: TOKEN_CDTRACK v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);	
+			$$->hint = H_SIMPLE;
+		};
+
+m_sellscreen: TOKEN_SELLSCREEN ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_cutscene: TOKEN_CUTSCENE v_string ';' {
+			$$=$1;
+			node_add_down($$,$2);
+			$$->hint = H_SIMPLE;
+		}
+
+m_updateentity: TOKEN_UPDATEENTITY '{' mcs_updateentity '}' {
+			CO_t updateentity_cs[] = {
+			  { TOKEN_ENTITY,       1 },
+			  { TOKEN_MODELINDEX,   0 },
+			  { TOKEN_FRAME,        0 },
+			  { TOKEN_COLORMAP,     0 },
+			  { TOKEN_SKIN,         0 },
+			  { TOKEN_EFFECTS,      0 },
+			  { TOKEN_ORIGIN_X,     0 },
+			  { TOKEN_ORIGIN_Y,     0 },
+			  { TOKEN_ORIGIN_Z,     0 },
+			  { TOKEN_ANGLES_1,     0 },
+			  { TOKEN_ANGLES_2,     0 },
+			  { TOKEN_ANGLES_3,     0 },
+			  { TOKEN_NEW,          0 }
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_DEM_UPDATEENTITY;
+			reorder_commands($$,updateentity_cs,arraylength(updateentity_cs));
+		};
+
+mcs_updateentity: mc_updateentity {
+			$$=$1;
+		}
+		| mcs_updateentity mc_updateentity {
+			$$=$1;
+			node_add_next($$,$2);
+		};
+
+mc_updateentity: c_entity { $$=$1; }
+		| c_modelindex { $$=$1; }
+		| c_frame { $$=$1; }
+		| c_colormap { $$=$1; }
+		| c_skin { $$=$1; }
+		| c_effects { $$=$1; }
+		| c_origin_x { $$=$1; }
+		| c_origin_y { $$=$1; }
+		| c_origin_z { $$=$1; }
+		| c_angles_1 { $$=$1; }
+		| c_angles_2 { $$=$1; }
+		| c_angles_3 { $$=$1; }
+		| c_new { $$=$1; };
+
+
+dm2_m_deltapacketentities: TOKEN_DELTAPACKETENTITIES '{' c_data '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		}
+		| TOKEN_DELTAPACKETENTITIES ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		}
+
+qwd_m_muzzleflash: TOKEN_MUZZLEFLASH v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+dm2_m_muzzleflash: TOKEN_MUZZLEFLASH '{' mcs_muzzleflash '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_muzzleflash: c_entity c_value {
+			$2->down->hint=H_BYTE;
+			$$=node_add_next($1,$2);
+		}
+		| c_value c_entity {
+			$1->down->hint=H_BYTE;
+			$$=node_add_next($2,$1);
+		};
+
+
+m_muzzlflash2: TOKEN_MUZZLFLASH2 '{' mcs_muzzleflash '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+m_layout: TOKEN_LAYOUT v_string ';' {
+			$2->hint = H_STRING;
+			$$=$1;
+			node_add_down($$,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_inventory: TOKEN_INVENTORY intlist ';' {
+			$$=$1;
+			node_add_down($$,$2);
+			$$->hint = H_SIMPLE;
+			if (node_count_next($2) != DM2_MAX_ITEMS) YYERROR;
+			node_add_hint_next($2, H_SHORT);
+		};
+
+m_download: TOKEN_DOWNLOAD '{' mcs_download '}' {
+			CO_t download_cs[] = {
+			  { TOKEN_SIZE,         1 },
+			  { TOKEN_PERCENT,      1 },
+			  { TOKEN_DATA,         0 }
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$,download_cs,arraylength(download_cs));
+		};
+
+mcs_download: mc_download {
+			$$=$1;
+		}
+		| mcs_download mc_download {
+			$$=$1;
+			node_add_next($$,$2);
+		};
+
+mc_download: c_size { $$=$1; }
+		| c_percent { $$=$1; }
+		| c_data { $$=$1; };
+
+m_frame: m_frame_client | m_frame_server | m_frame_relay ;
+
+m_frame_client: TOKEN_FRAME '{' mcs_frame_client '}' {
+			CO_t frame_client_cs[] = {
+			  { TOKEN_SEQ1,         1 },
+			  { TOKEN_SEQ2,         1 },
+			  { TOKEN_UK_B1,        0 },
+			  { TOKEN_AREAS,        1 }
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_DM2_FRAME;
+                        reorder_commands($$,frame_client_cs,arraylength(frame_client_cs));
+		};
+
+mcs_frame_client: mc_frame_client {
+			$$=$1;
+		}
+		| mcs_frame_client mc_frame_client {
+			$$=$1;
+			node_add_next($$,$2);
+		};
+
+mc_frame_client: m_seq1 { $$=$1; }
+		| m_seq2 { $$=$1; }
+		| c_uk_b1 { $$=$1; }
+		| c_areas { $$=$1; };
+
+m_frame_server: TOKEN_FRAME v_int ';' {
+			$$=$1;
+			$2->hint = H_LONG;
+			node_add_down($$,$2);
+			$$->hint = H_SIMPLE;
+		}
+
+m_frame_relay: TOKEN_FRAME '{' mcs_frame_relay '}' {
+			CO_t frame_client_cs[] = {
+			  { TOKEN_SEQ1,         1 },
+			  { TOKEN_SEQ2,         1 },
+			  { TOKEN_UK_B1,        0 },
+			  { TOKEN_AREAS,        1 },
+			  { TOKEN_CONNECTED,    1 },
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_DM2_FRAME;
+                        reorder_commands($$,frame_client_cs,arraylength(frame_client_cs));
+		};
+
+
+mcs_frame_relay: mcs_frame_client c_connected {
+			$$=$1;
+			node_add_next($$,$2);
+		}
+		| mcs_frame_client c_connected mcs_frame_client {
+			$$=$1;
+			node_add_next($$,$2);
+			node_add_next($$,$3);
+		}
+		| c_connected mcs_frame_client {
+			$$=$1;
+			node_add_next($$,$2);
+		};
+
+
+m_smallkick: TOKEN_SMALLKICK ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_bigkick: TOKEN_BIGKICK ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_updateping: TOKEN_UPDATEPING '{' mcs_updateping '}' {
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_updateping: c_player c_ping {
+			$$=$1;
+			node_add_next($$,$2);
+		}
+		| c_ping c_player {
+			$$=$2;
+			node_add_next($$,$1);
+		};
+
+m_updateentertime: TOKEN_UPDATEENTERTIME '{' mcs_updateentertime '}' {
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_updateentertime: c_player c_entertime {
+			$$=$1;
+			node_add_next($$,$2);
+		}
+		| c_entertime c_player {
+			$$=$2;
+			node_add_next($$,$1);
+		};
+
+m_updatestatlong: TOKEN_UPDATESTATLONG '{' mcs_updatestatlong '}' {
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_updatestatlong: c_index c_value {
+			$$=$1;
+			node_add_next($$,$2);
+		}
+		| c_value c_index {
+			$$=$2;
+			node_add_next($$,$1);
+		};
+
+m_updateuserinfo: TOKEN_UPDATEUSERINFO '{' mcs_updateuserinfo '}' {
+			CO_t updateuserinfo_cs[] = {
+			  { TOKEN_PLAYER,       1 },
+			  { TOKEN_USER,         1 },
+			  { TOKEN_STRING,       1 }
+			};
+			$$=$1;
+			node_add_down($$,$3);
+			$$->hint = H_SIMPLE;
+                        reorder_commands($$,updateuserinfo_cs,arraylength(updateuserinfo_cs));
+		};
+
+mcs_updateuserinfo: mc_updateuserinfo {
+			$$=$1;
+		}
+		| mcs_updateuserinfo mc_updateuserinfo {
+			$$=$1;
+			node_add_next($$,$2);
+		};
+
+mc_updateuserinfo: c_player
+		| c_user
+		| c_string ;
+
+m_nails: TOKEN_NAILS '{' mcs_nails '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_QWD_NAILS;
+		};
+
+mcs_nails: m_nail {
+			$$=$1;
+		}
+		| mcs_nails m_nail {
+			$$=node_add_next($1,$2);
+		};
+
+m_nail: TOKEN_NAIL '{' mcs_nail '}' {
+			CO_t nail_cs[] = {
+			  { TOKEN_ORIGIN,       1 },
+			  { TOKEN_ANGLES_1,     1 },
+			  { TOKEN_ANGLES_2,     1 }
+			};
+			$$=node_add_down($1,$3);
+                        reorder_commands($$,nail_cs,arraylength(nail_cs));
+		};
+
+mcs_nail: mc_nail {
+			$$=$1;
+		}
+		| mcs_nail mc_nail {
+			$$=node_add_next($1,$2);
+		};
+
+mc_nail: c_origin_i
+		| c_angles_1
+		| c_angles_2 ;
+
+m_choke: TOKEN_CHOKE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_modellist: old_m_modellist | new_m_modellist;
+
+old_m_modellist: TOKEN_MODELLIST stringlist ';' {
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+new_m_modellist: TOKEN_MODELLIST '{' mcs_modellist '}' {
+			CO_t modellist_cs[] = {
+			  { TOKEN_FIRST,        1 },
+			  { TOKEN_MODELS,       1 },
+			  { TOKEN_NEXT,         0 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$,modellist_cs,arraylength(modellist_cs));
+		};
+
+mcs_modellist: mc_modellist {
+			$$=$1;
+		}
+		| mcs_modellist mc_modellist {
+			$$=node_add_next($1,$2);
+		};
+
+mc_modellist: c_first
+		| c_models
+		| c_last ;
+
+m_soundlist: old_m_soundlist | new_m_soundlist;
+
+old_m_soundlist: TOKEN_SOUNDLIST stringlist ';' {
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+new_m_soundlist: TOKEN_SOUNDLIST '{' mcs_soundlist '}' {
+			CO_t soundlist_cs[] = {
+			  { TOKEN_FIRST,        1 },
+			  { TOKEN_SOUNDS,       1 },
+			  { TOKEN_NEXT,         1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+			reorder_commands($$,soundlist_cs,arraylength(soundlist_cs));
+		};
+
+mcs_soundlist: mc_soundlist {
+			$$=$1;
+		}
+		| mcs_soundlist mc_soundlist {
+			$$=node_add_next($1,$2);
+		};
+
+mc_soundlist: c_first
+		| c_sounds
+		| c_last ;
+
+m_maxspeed: TOKEN_MAXSPEED v_float ';' {
+			$2->hint = H_FLOAT;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_entgravity: TOKEN_ENTGRAVITY v_float ';' {
+			$2->hint = H_FLOAT;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_setinfo: TOKEN_SETINFO '{' mcs_setinfo '}' {
+			CO_t setinfo_cs[] = {
+			  { TOKEN_PLAYER,       1 },
+			  { TOKEN_NAME,         1 },
+			  { TOKEN_STRING,       1 }
+			};
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+                        reorder_commands($$,setinfo_cs,arraylength(setinfo_cs));
+		};
+
+mcs_setinfo: mc_setinfo {
+			$$=$1;
+		}
+		| mcs_setinfo mc_setinfo {
+			$$=node_add_next($1,$2);
+		};
+
+mc_setinfo: c_player
+		| c_name
+		| c_string ;
+
+qwd_m_serverinfo: TOKEN_SERVERINFO '{' qwd_mcs_serverinfo '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+m_updatepl: TOKEN_UPDATEPL '{' mcs_updatepl '}' {
+			$$=node_add_down($1,$3);
+			$$->hint = H_SIMPLE;
+		};
+
+mcs_updatepl: c_player c_loss { $$=node_add_next($1,$2); }
+		| c_loss c_player { $$=node_add_next($2,$1); };
+
+qwd_mcs_serverinfo: c_name c_string {
+			$$=node_add_next($1,$2);
+		}
+		| c_string c_name {
+			$$=node_add_next($2,$1);
+		};
+
+m_client_command: TOKEN_CLIENT_COMMAND v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_connect: TOKEN_CONNECT ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_challenge: TOKEN_CHALLENGE v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+			$$->hint = H_SIMPLE;
+		};
+
+m_ping: TOKEN_PING ';' {
+			$$=$1;
+			$$->hint = H_SIMPLE;
+		};
+
+m_seq1: TOKEN_SEQ1 v_int ';' {
+			$2->hint = H_LONG;
+			$$=node_add_down($1,$2);
+		};
+
+m_seq2: TOKEN_SEQ2 v_int ';' {
+			$2->hint = H_LONG;
+			$$=node_add_down($1,$2);
+		};
+
+m_angles: TOKEN_ANGLES floatvector ';' {
+			node_add_hint_next($2,H_FLOAT);
+			$$=node_add_down($1,$2);
+		};
+
+m_speed: TOKEN_SPEED intvector ';' {
+			node_add_hint_next($2,H_SHORT);
+			$$=node_add_down($1,$2);
+		};
+
+m_uk_angles: TOKEN_UK_ANGLES floatvector ';' {
+			node_add_hint_next($2,H_FLOAT);
+			$$=node_add_down($1,$2);
+		};
+
+m_reliable: TOKEN_RELIABLE v_int ';' { $$=node_add_down($1,$2); } 
+		| TOKEN_RELIABLE v_int v_int ';' { 
+			$$=node_add_down($1,node_add_next($2,$3));
+		};
+
+		/* values */
+
+intlist: v_int {
+			$1->hint = H_BYTE;
+			$$=$1;
+		}
+		| intlist v_int {
+			$2->hint = H_BYTE;
+			$$=node_add_next($1,$2);
+		};
+
+intvector: v_int v_int v_int {
+			$$=node_add_next($1,$2);
+			node_add_next($$,$3);
+		};
+
+
+floatlist: v_float {
+			$1->hint = H_FLOAT;
+			$$=$1;
+		}
+		| floatlist v_float {
+			$2->hint = H_FLOAT;
+			$$=node_add_next($1,$2);
+		};
+
+floatvector: v_float v_float v_float {
+			$$=node_add_next($1,$2);
+			node_add_next($$,$3);
+		};
+
+stringlist: v_string {
+			$1->hint = H_STRINGLIST; 
+			$$=$1;
+		}
+		| stringlist v_string {
+			$2->hint = H_STRINGLIST;
+			$$=node_add_next($1,$2);
+		};
+
+time: v_float 's' {
+			$$=$1;
+			$$->type = V_TIME;
+		}
+		| v_int ':' v_float 'm' {
+			$$=$3;
+			(*(float*)($$->down)) += 60.0 * (*(long*)($1->down));
+			node_delete($1);
+			$$->type = V_TIME;
+		}
+		| v_int ':' v_int ':' v_float 'h' {
+			$$=$5;
+			(*(float*)($$->down)) += 60.0 * (*(long*)($3->down));
+			(*(float*)($$->down)) += 3600.0 * (*(long*)($1->down));
+			node_delete($1);
+			node_delete($3);
+			$$->type = V_TIME;
+		}
+		| v_float {
+			$$=$1;
+			$$->type = V_TIME;
+		};
+
+		/* commands */
+
+c_id: TOKEN_ID v_int ';' {
+			$2->hint = H_BYTE;
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_data: TOKEN_DATA intlist ';' {
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_index: TOKEN_INDEX v_int ';' {
+			$2->hint = H_BYTE;
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_value: TOKEN_VALUE v_int ';' {
+			$2->hint = H_LONG;
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_unknown_mask_bits: TOKEN_UNKNOWN_MASK_BITS intlist ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_vol: TOKEN_VOL v_float ';' {
+			$2->hint = H_VOL;
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_attenuation: TOKEN_ATTENUATION v_float ';' {
+			$2->hint = H_ATTENUATION;
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_channel: TOKEN_CHANNEL v_int ';' {
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_soundnum: TOKEN_SOUNDNUM v_int ';' {
+			$2->hint = H_BYTE;
+			$$=$1;
+			node_add_down($$,$2);
+		};
+
+c_origin: TOKEN_ORIGIN floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_origin_i: TOKEN_ORIGIN intvector ';' {
+			node_add_hint_next($2,H_SHORT);
+			$$=node_add_down($1,$2);
+		};
+
+c_serverversion: TOKEN_SERVERVERSION v_int ';' {
+			/* memorize the server version in a global variable */
+			SERVERVERSION = *((long*)($2->down));
+			$2->hint = H_LONG;
+			$$=node_add_down($1,$2);
+		};
+
+c_maxclients: TOKEN_MAXCLIENTS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_multi: TOKEN_MULTI v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_mapname: TOKEN_MAPNAME v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+		};
+
+c_models: TOKEN_MODELS stringlist ';' {
+			$2->hint = H_STRINGLIST;
+			$$=node_add_down($1,$2);
+		};
+
+c_sounds: TOKEN_SOUNDS stringlist ';' {
+			$2->hint = H_STRINGLIST;
+			$$=node_add_down($1,$2);
+		};
+
+c_style: TOKEN_STYLE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_string: TOKEN_STRING v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+		};
+
+c_player: TOKEN_PLAYER v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_client: TOKEN_CLIENT v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_netname: TOKEN_NETNAME v_string ';' {
+			$2->hint = H_STRING; 
+			$$=node_add_down($1,$2);
+		};
+
+c_frags: TOKEN_FRAGS v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_view_ofs_z: TOKEN_VIEW_OFS_Z v_float ';' {
+			$2->hint = H_BYTEFLOAT;
+			$$=node_add_down($1,$2);
+		};
+
+c_punchangle_x: TOKEN_PUNCHANGLE_X v_float ';' {
+			$2->hint = H_BYTEFLOAT;
+			$$=node_add_down($1,$2);
+		};
+
+c_angles_1: TOKEN_ANGLES_1 v_float ';' {
+			$2->hint = H_ANGLE;
+			$$=node_add_down($1,$2);
+		};
+
+c_angles_2: TOKEN_ANGLES_2 v_float ';' {
+			$2->hint = H_ANGLE;
+			$$=node_add_down($1,$2);
+		};
+
+c_angles_3: TOKEN_ANGLES_3 v_float ';' {
+			$2->hint = H_ANGLE;
+			$$=node_add_down($1,$2);
+		};
+
+c_vel_x: TOKEN_VEL_X v_float ';' {
+			$2->hint = H_BYTEFLOAT;
+			$$=node_add_down($1,$2);
+		};
+
+c_vel_y: TOKEN_VEL_Y v_float ';' {
+			$2->hint = H_BYTEFLOAT;
+			$$=node_add_down($1,$2);
+		};
+
+c_vel_z: TOKEN_VEL_Z v_float ';' {
+			$2->hint = H_BYTEFLOAT;
+			$$=node_add_down($1,$2);
+		};
+
+c_weapons: TOKEN_WEAPONS intlist ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_ammotype: TOKEN_AMMOTYPE intlist ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_armortype: TOKEN_ARMORTYPE intlist ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_megahealth: TOKEN_MEGAHEALTH ';' {
+			$$=$1;
+		};
+
+c_keys: TOKEN_KEYS intlist ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_power_ups: TOKEN_POWER_UPS intlist ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_uk_items_b23: TOKEN_UK_ITEMS_B23 ';' {
+			$$=$1;
+		};
+
+c_uk_items_b24: TOKEN_UK_ITEMS_B24 ';' {
+			$$=$1;
+		};
+
+c_uk_items_b25: TOKEN_UK_ITEMS_B25 ';' {
+			$$=$1;
+		};
+
+c_uk_items_b26: TOKEN_UK_ITEMS_B26 ';' {
+			$$=$1;
+		};
+
+c_uk_items_b27: TOKEN_UK_ITEMS_B27 ';' {
+			$$=$1;
+		};
+
+c_runes: TOKEN_RUNES intlist ';' { 
+			$$=node_add_down($1,$2);
+		};
+
+c_uk_bit_b10: TOKEN_UK_BIT_B10 ';' {
+			$$=$1;
+		};
+
+c_uk_bit_b11: TOKEN_UK_BIT_B11 ';' {
+			$$=$1;
+		};
+
+c_weaponframe: TOKEN_WEAPONFRAME v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_armorvalue: TOKEN_ARMORVALUE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_weaponmodel: TOKEN_WEAPONMODEL v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_health: TOKEN_HEALTH v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_currentammo: TOKEN_CURRENTAMMO v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_ammo_shells: TOKEN_AMMO_SHELLS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_ammo_nails: TOKEN_AMMO_NAILS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_ammo_rockets: TOKEN_AMMO_ROCKETS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_ammo_cells: TOKEN_AMMO_CELLS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_weapon: TOKEN_WEAPON intlist ';' {
+                        $$=node_add_down($1,$2);
+                };
+
+c_colors: TOKEN_COLORS v_int v_int ';' {
+			node_add_next($2,$3);
+			$$=node_add_down($1,$2);
+		};
+
+c_vel: TOKEN_VEL floatvector ';' {
+			$2->hint = H_VEL;
+			$2->next->hint = H_VEL;
+			$2->next->next->hint = H_VEL;
+			$$=node_add_down($1,$2);
+		};
+
+c_color: TOKEN_COLOR v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_count: TOKEN_COUNT v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_save: TOKEN_SAVE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_take: TOKEN_TAKE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_default_modelindex: TOKEN_DEFAULT_MODELINDEX v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_default_frame: TOKEN_DEFAULT_FRAME v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_default_colormap: TOKEN_DEFAULT_COLORMAP v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_default_skin: TOKEN_DEFAULT_SKIN v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_default_origin: TOKEN_DEFAULT_ORIGIN floatvector ';' {
+			$2->hint = H_COORD;
+			$2->next->hint = H_COORD;
+			$2->next->next->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		};
+
+c_default_angles: TOKEN_DEFAULT_ANGLES floatvector ';' {
+			$2->hint = H_ANGLE;
+			$2->next->hint = H_ANGLE;
+			$2->next->next->hint = H_ANGLE;
+			$$=node_add_down($1,$2);
+		};
+
+c_dest_entity: TOKEN_DEST_ENTITY v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_entity: TOKEN_ENTITY v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_entitytype: TOKEN_ENTITYTYPE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_nextid: TOKEN_NEXTID v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_start: TOKEN_START floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_dest_origin: TOKEN_DEST_ORIGIN floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_type: TOKEN_TYPE v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_flash_entity: TOKEN_FLASH_ENTITY v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_trace_endpos: TOKEN_TRACE_ENDPOS floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_pos1: TOKEN_POS1 floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_pos2: TOKEN_POS2 floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_pos3: TOKEN_POS3 floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_pos4: TOKEN_POS4 floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_plat2flags: TOKEN_PLAT2FLAGS v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		 };
+
+c_wait: TOKEN_WAIT v_int ';' {
+			$2->hint = H_LONG;
+			$$=node_add_down($1,$2);
+		 };
+
+c_range: TOKEN_RANGE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		 };
+
+c_fromtrack: TOKEN_FROMTRACK v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_totrack: TOKEN_TOTRACK v_int ';' { 
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_modelindex: TOKEN_MODELINDEX v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_frame: TOKEN_FRAME v_int ';' {
+			$2->hint = H_SB;
+			$$=node_add_down($1,$2);
+		};
+
+c_colormap: TOKEN_COLORMAP v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_skin: TOKEN_SKIN v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_vwep: TOKEN_VWEP v_int ';' {
+			$2->hint = H_LSB;
+			$$=node_add_down($1,$2);
+		};
+
+c_effects: TOKEN_EFFECTS v_int ';' {
+			$2->hint = H_LSB;
+			$$=node_add_down($1,$2);
+		};
+
+c_origin_x: TOKEN_ORIGIN_X v_float ';' {
+			$2->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		};
+
+c_origin_y: TOKEN_ORIGIN_Y v_float ';' {
+			$2->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		};
+
+c_origin_z: TOKEN_ORIGIN_Z v_float ';' {
+			$2->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		}; 
+
+c_new: TOKEN_NEW ';' {
+			$$=$1;
+		};
+
+c_level: TOKEN_LEVEL v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_isdemo: TOKEN_ISDEMO v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_key: TOKEN_KEY v_int ';' {
+			$2->hint = H_LONG;
+			$$=node_add_down($1,$2);
+		};
+
+c_game: TOKEN_GAME v_string ';' {
+			$2->hint = H_STRING;
+			$$=node_add_down($1,$2);
+		};
+
+c_pm_type: TOKEN_PM_TYPE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+
+c_pm_time: TOKEN_PM_TIME v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+
+c_pm_flags: TOKEN_PM_FLAGS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+
+c_gravity: TOKEN_GRAVITY v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_timeofs: TOKEN_TIMEOFS v_float ';' {
+			$2->hint = H_TIMEOFS;
+			$$=node_add_down($1,$2);
+		};
+
+c_areas: TOKEN_AREAS intlist ';' {
+			node_add_type_next($2,V_BYTEHEX);
+			$$=node_add_down($1,$2);
+		}
+		| 
+	TOKEN_AREAS ';' {
+			$$=$1;
+		}
+
+c_connected: TOKEN_CONNECTED intlist ';' {
+			node_add_type_next($2,V_BYTEHEX);
+			$$=node_add_down($1,$2);
+		}
+		| 
+	TOKEN_CONNECTED ';' {
+			$$=$1;
+		}
+
+c_uk_b1: TOKEN_UK_B1 v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_percent: TOKEN_PERCENT v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_remove: TOKEN_REMOVE ';' {
+			$$=$1;
+		};
+
+c_modelindex2: TOKEN_MODELINDEX2 v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_modelindex3: TOKEN_MODELINDEX3 v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_modelindex4: TOKEN_MODELINDEX4 v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_rdflags: TOKEN_RDFLAGS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_fov: TOKEN_FOV v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_size: TOKEN_SIZE v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_solid: TOKEN_SOLID v_int ';' {
+			$2->hint = H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_event: TOKEN_EVENT v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_delta_angles: TOKEN_DELTA_ANGLES floatvector ';' {
+			$2->hint = H_ANGLE16;
+			$2->next->hint = H_ANGLE16;
+			$2->next->next->hint = H_ANGLE16;
+			$$=node_add_down($1,$2);
+		};
+
+c_old_origin: TOKEN_OLD_ORIGIN floatvector ';' {
+			$2->hint = H_COORD;
+			$2->next->hint = H_COORD;
+			$2->next->next->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		};
+
+c_renderfx: TOKEN_RENDERFX v_int ';' {
+			$2->hint = H_LSB;
+			$$=node_add_down($1,$2);
+		};
+
+c_sound: TOKEN_SOUND v_int ';' {
+			$$=$1;
+			$2->hint = H_BYTE;
+			node_add_down($$,$2);
+		};
+
+c_stats: TOKEN_STATS '{' cc_stats '}' {
+			$3->hint = H_SIMPLE;
+			$$=node_add_down($1,$3);
+		};
+
+cc_stats: c_stat {
+			$$=$1;
+		}
+		| cc_stats c_stat {
+			$$=node_add_next($1,$2);
+		};
+
+c_stat: TOKEN_STAT '{' cc_stat '}' {
+			$3->hint = H_SIMPLE;
+			$$=node_add_down($1,$3);
+		};
+
+cc_stat: c_index c_value {
+			$1->hint = H_NOTHING;
+			$2->hint = H_SHORT;
+			$$=node_add_next($1,$2);
+		}
+		| c_value c_index {
+			$2->hint = H_NOTHING;
+			$1->hint = H_SHORT;
+			$$=node_add_next($2,$1);
+		};
+
+c_gunindex: TOKEN_GUNINDEX v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_gunframe: TOKEN_GUNFRAME v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_movedir: TOKEN_MOVEDIR floatvector ';' {
+			$2->hint = H_DIR;
+			$2->next->hint = H_NOTHING;
+			$2->next->next->hint = H_NOTHING;
+			$$=node_add_down($1,$2);
+		};
+
+c_viewoffset: TOKEN_VIEWOFFSET floatvector ';' {
+			$$=$1;
+			node_add_hint_next($2,H_OFFSET);
+			node_add_down($$,$2);
+		};
+
+c_kick_angles: TOKEN_KICK_ANGLES floatvector ';' {
+			$$=$1;
+			node_add_hint_next($2,H_OFFSET);
+			node_add_down($$,$2);
+		};
+
+c_gunoffset: TOKEN_GUNOFFSET floatvector ';' {
+			node_add_hint_next($2,H_OFFSET);
+			$$=node_add_down($1,$2);
+		};
+
+c_gunangles: TOKEN_GUNANGLES floatvector ';' {
+			node_add_hint_next($2,H_OFFSET);
+			$$=node_add_down($1,$2);
+		};
+
+c_viewangles: TOKEN_VIEWANGLES floatvector ';' {
+			node_add_hint_next($2,H_ANGLE16);
+			$$=node_add_down($1,$2);
+		};
+
+c_blend: TOKEN_BLEND v_float v_float v_float v_float ';' {
+			node_add_next($2,$3);
+			node_add_next($2,$4);
+			node_add_next($2,$5);
+			node_add_hint_next($2,H_BLEND);
+			$$=node_add_down($1,$2);
+		};
+
+c_velocity: TOKEN_VELOCITY floatvector ';' {
+			node_add_hint_next($2,H_COORD);
+			$$=node_add_down($1,$2);
+		};
+
+c_ping: TOKEN_PING v_int ';' {
+			$2->hint=H_SHORT;
+			$$=node_add_down($1,$2);
+		};
+
+c_ping_playerinfo: TOKEN_PING v_float ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_entertime: TOKEN_ENTERTIME time ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_user: TOKEN_USER v_int ';' {
+			$2->hint=H_LONG;
+			$$=node_add_down($1,$2);
+		};
+
+c_first: TOKEN_FIRST v_int ';' {
+			$2->hint=H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_last: TOKEN_NEXT v_int ';' {
+			$2->hint=H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_name: TOKEN_NAME v_string ';' {
+			$2->hint = H_STRING; 
+			$$=node_add_down($1,$2);
+		};
+c_age: TOKEN_AGE v_int ';' {
+			$2->hint = H_LONG;
+			$$=node_add_down($1,$2);
+		};
+
+c_uk_floats: TOKEN_UK_FLOATS floatlist ';' {
+			$$=node_add_down($1,$2);
+		};
+
+c_speed_x: TOKEN_SPEED_X v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_speed_y: TOKEN_SPEED_Y v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_speed_z: TOKEN_SPEED_Z v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_fire: TOKEN_FIRE ';' {
+			$$=$1;
+		};
+
+c_jump: TOKEN_JUMP ';' {
+			$$=$1;
+		};
+
+c_flag: TOKEN_FLAG intlist ';' {
+			$$=$1;
+		};
+
+c_impulse: TOKEN_IMPULSE v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_load: TOKEN_LOAD v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_uk_byte6: TOKEN_UK_BYTE6 v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+c_cspeed_x: TOKEN_CSPEED_X v_float ';' {
+			$2->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		};
+
+c_cspeed_y: TOKEN_CSPEED_Y v_float ';' {
+			$2->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		};
+
+c_cspeed_z: TOKEN_CSPEED_Z v_float ';' {
+			$2->hint = H_COORD;
+			$$=node_add_down($1,$2);
+		};
+
+c_loss: TOKEN_LOSS v_int ';' {
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+m_unicast: TOKEN_UNICAST v_int ';' {
+			$1->hint = H_UNICAST;
+			$2->hint = H_BYTE;
+			$$=node_add_down($1,$2);
+		};
+
+
+
+%%
+
+
+
+void reorder_commands(node* m, CO_t* co, int count)
+{
+  node* c;       /* command pointer */
+  int* order;    /* array with the ordered command numbers */
+  int* used;     /* found and used commands */
+  node** cl;     /* command array */
+  int i, j;      /* command counter */
+  int ccs;       /* number of commands in this message */
+  int cc;        /* command index */
+  char ts[1000]; /* temp string for syntax error */
+  int found;     /* found flag */
+
+  /* allocate the cl array */
+  if ((cl = (node**) malloc(sizeof(node*) * count)) == NULL)
+    syserror(ENOMEM, "cl");
+  /* fill cl with all commands, maximum is count */
+  for (j=0, c=m->down; j<count && c!=NULL; c=c->next, j++) { cl[j] = c; }
+  if (c!=NULL) syntaxerror(m->pos, "too many commands");
+  /* we found ccs commands at m->down */
+  ccs=j;
+  /* allocate the order and used array */
+  if ((order = (int*) malloc(sizeof(int) * ccs)) == NULL)
+    syserror(ENOMEM, "order");
+  if ((used = (int*) malloc(sizeof(int) * ccs)) == NULL)
+    syserror(ENOMEM, "used");
+
+  for (j=0 ; j<ccs ; j++) {
+    order[j] = -1;      /* not filled */
+    cl[j]->next = NULL; /* there is no liked list anymore */
+    used[j] = 0;        /* the command no j is not used up to now */
+  }
+  cc = 0; /* cc is the index in order */
+  for (i=0 ; i<count ; i++) { /* there may be count commands */
+    found = 0; /* we didn't found command i */
+    for (j=0 ; j<ccs ; j++) { /* there are ccs commands available */
+      if (used[j]) continue; /* is it used already ? */
+      if (co[i].type==cl[j]->type) { /* is this command ? */
+        found=1; /* we found it */
+        break; /* stop this j loop */
+      }
+    }
+    if (!found && co[i].obli) {
+      sprintf(ts, "In message %s %s command missing", 
+        node_token_string(m->type), node_token_string(co[i].type));
+      syntaxerror(m->pos, ts);
+    }
+    if (found) {
+      used[j] = 1; /* we used command j */
+      order[cc++] = j; /* command j is the next command, cc counts */
+    }
+  }
+  /* we found cc commands, it should be == ccs, is cc<ccs: other commands */
+  if (ccs!=cc) {
+    sprintf(ts, "In message %s are additional commands", node_token_string(m->type));
+    syntaxerror(m->pos, ts);
+  }
+  /* make the linked list */
+  for (i=0 ; i<ccs-1 ; i++) cl[order[i]]->next = cl[order[i+1]];
+  /* the command list starts with the first */
+  m->down = cl[order[0]];
+
+  free(cl);
+  free(order);
+  free(used);
+}
+
+
+/*- file end udemy.y.in -----------------------------------------------------*/

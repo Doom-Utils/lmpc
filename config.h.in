@@ -1,0 +1,153 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
+/* Define if using alloca.c.  */
+#undef C_ALLOCA
+
+/* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP systems.
+   This function is required for alloca.c support on those systems.  */
+#undef CRAY_STACKSEG_END
+
+/* Define if you have alloca, as a function or macro.  */
+#undef HAVE_ALLOCA
+
+/* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
+#undef HAVE_ALLOCA_H
+
+/* Define as __inline if that's what the C compiler calls it.  */
+#undef inline
+
+/* Define to `long' if <sys/types.h> doesn't define.  */
+#undef off_t
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef pid_t
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+#undef size_t
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at run-time.
+ STACK_DIRECTION > 0 => grows toward higher addresses
+ STACK_DIRECTION < 0 => grows toward lower addresses
+ STACK_DIRECTION = 0 => direction of growth unknown
+ */
+#undef STACK_DIRECTION
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if your <sys/time.h> declares struct tm.  */
+#undef TM_IN_SYS_TIME
+
+/* Define if lex declares yytext as a char * by default, not a char[].  */
+#undef YYTEXT_POINTER
+
+/* Define the build date. */
+#define DATE "0/0/00"
+
+/* Define a release note. */
+#define COMMENT "test"
+
+/* Define the host, where the program should run. */
+#define HOST "0-unknown-0"
+
+/* Define if LMP support should be compiled in. */
+#define ENABLE_LMP 1
+
+/* Define if DMO support should be compiled in. */
+#define ENABLE_DMO 1
+
+/* Define if DEM support should be compiled in. */
+#define ENABLE_DEM 1
+
+/* Define if QWD support should be compiled in. */
+#define ENABLE_QWD 1
+
+/* Define if DM2 support should be compiled in. */
+#define ENABLE_DM2 1
+
+/* Define if DM3 support should be compiled in. */
+#undef ENABLE_DM3
+
+/* Define if you have the memmem prototype. */
+#undef HAVE_MEMMEM_PROTOTYPE
+
+/* Define if you have the gettimeofday function.  */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define if you have the memmem function.  */
+#undef HAVE_MEMMEM
+
+/* Define if you have the mkfifo function.  */
+#undef HAVE_MKFIFO
+
+/* Define if you have the strdup function.  */
+#undef HAVE_STRDUP
+
+/* Define if you have the strsep function.  */
+#undef HAVE_STRSEP
+
+/* Define if you have the <memory.h> header file.  */
+#undef HAVE_MEMORY_H
+
+/* Define if you have the <sys/ipc.h> header file.  */
+#undef HAVE_SYS_IPC_H
+
+/* Define if you have the <sys/shm.h> header file.  */
+#undef HAVE_SYS_SHM_H
+
+/* Define if you have the <sys/time.h> header file.  */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the m library (-lm).  */
+#undef HAVE_LIBM
+
+/* Name of package */
+#undef PACKAGE
+
+/* Version number of package */
+#undef VERSION
+
+
+
+/*
+ *  The following functions and data types are defined but strict ANSI
+ *  provides no prototypes for them.
+ *  I really don't like this part. I may remove this -ansi flag in the future.
+ */
+
+#if defined (MAYBE_I_NEED_IT_LATER__STRICT_ANSI__)
+#include <stdio.h>
+struct timeval {
+  time_t tv_sec;
+  long tv_usec;
+};
+struct timezone {
+  int tz_minuteswest;
+  int tz_dsttime;
+};
+extern int fileno(FILE *stream);
+extern int gethostname(char *name, size_t len);
+extern char* strdup(const char*);
+extern char *strsep(char **stringp, const char *delim);
+extern int gettimeofday(struct timeval *tv, struct timezone *tz);
+#endif /* defined (__STRICT_ANSI__) */
+
+
+/*
+ *  With the following definitions I can use always the non-reversed order.
+ *  The check to get the SETVBUF_REVERSED value needs a real program run,
+ *  which is impossible with cross-compiling. So you have to manually
+ *  uncomment the next line, if you suspect something bad with setvbuf.
+ */
+/* #define SETVBUF_REVERSED 1 */
+#if defined(SETVBUF_REVERSED)
+#define SETVBUF(stream, buf, mode , size) setvbuf(stream, mode, buf, size)
+#else
+#define SETVBUF(stream, buf, mode , size) setvbuf(stream, buf, mode, size)
+#endif
+

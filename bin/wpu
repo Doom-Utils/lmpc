@@ -1,0 +1,994 @@
+#! /usr/bin/perl -w
+
+# This is The Web Publishing Utility (wpu).
+# It is needed in the process of preparing web pages out of SGML sources
+# and some more macro expansion jobs.
+
+# This tool does not belong to this package. I distribute it only here
+# because it is needed for the documentation processing. So you may have
+# to change the path to your perl binary in the first line yourself.
+
+# I wont write any documentation for it. Read the source or forget this tool.
+
+
+use POSIX;
+use Cwd;
+use Getopt::Long;
+use strict;
+
+
+my $version = "1.0.8";
+my $date = "1/23/2000";
+my $comment = "reliable version";
+
+( my $script=$0 ) =~ s/.*\///;
+
+sub syntax;
+sub query;
+sub subst;
+sub t2h;
+sub packageindex;
+sub indexpart;
+sub mainbase;
+sub mainpart;
+sub upload;
+sub readme;
+sub packaging;
+sub readmepackaging;
+sub WriteStringToFile;
+sub ReadFileToString;
+sub FormatDate;
+sub ScanDate;
+sub MaxDateBin;
+sub MaxDateText;
+sub CanonicalName;
+sub uniq;
+sub GetSubstValue;
+sub substvariables;
+
+my %banners = (
+		"main"=>1, 
+		"dm2"=>1,
+		"lmpc"=>1,
+		"dem"=>1,
+		"misc"=>1,
+		"faq"=>1,
+		"qwd"=>1,
+		"lmp"=>1,
+);
+
+# base definitions ###################################################
+my %values = (
+  "ACTION"  => "syntax",
+  "PACKAGE" => "test",
+  "TITLE"   => "The test program",
+  "VERSION" => "0.0.0",
+  "DATE"    => "0/0/0000",
+  "COMMENT" => "simple check",
+  "ZIP"     => "zip",
+  "TAR"     => "tar",
+  "SCRIPT"  => $script,
+  "SUBPACKAGE" => "",
+  "STUFF"   => "",
+  "BANNER1" => "<!--INSERTADTHISPAGE -->",
+  "BANNER2" => "<!--ACCIPITERADINSERT /SITE=PQ/AAMSZ=IAB_FULL_BANNER-->",
+  "SIG"     => "<HR>
+Last changed: \@DATE@, Count: <img
+src=\"/counter/count.exe?srgb=00ff00&prgb=101010&ft=0&tr=1&pad=0&df=pqdemospecs\">,
+<A HREF=\"mailto:\@MYEMAIL@\">\@MYNAME@</A>
+<P ALIGN=\"CENTER\">
+<A HREF=\"http://www.linux.org\">
+<IMG SRC=\"/\@BASE@/icons/FreePower2.1.gif\"
+ALT=\"Free LINUX Power\" >
+<A HREF=\"http://www.anybrowser.org/campaign/\">
+<IMG
+SRC=\"/\@BASE@/icons/anybrowser3.gif\" WIDTH=\"88\"
+HEIGHT=\"31\" ALT=\"Best Viewed With Any Browser\"
+BORDER=\"0\"></A></P>",
+
+);
+
+# merge the environment ##############################################
+mergehash(\%values, \%ENV);
+
+# merge the command line options #####################################
+my %optctl = ();
+my $result = GetOptions (\%optctl, "set=s%");
+die "$script: command line parse problem" unless $result;
+mergehash(\%values, $optctl{"set"});
+
+# get config files ###################################################
+# general files
+my @wpuconfigfiles = ("${script}rc", 
+                      ".${script}", 
+                      "Makefile",
+                      "configure.in"
+                     );
+
+# general dirs
+my @wpuconfigdirs = ("/etc",
+                     $ENV{"HOME"},
+                     ".",
+                     "..",
+                     "../..",
+                    );
+
+# lets get some standard directories
+my @wpuconfigs = @wpuconfigdirs;
+
+# most options are file names anyway
+push @wpuconfigs, @ARGV;
+
+# collect here the full file names
+my @configs=();
+
+foreach my $arg (@wpuconfigs) {
+  # print "looking in $arg\n";
+  my $dir=CanonicalName($arg);
+  # print "better is $dir\n";
+  # not there ?
+  next if ! -r $dir;
+  # not a directory ?
+  if (! -d $dir) {
+    # cut off the filename
+    $dir =~ s|/[^/]*$||;
+  }
+  # print "dir = $dir\n";
+  # something went wrong
+  next if ! -d $dir;
+  # look for correct combinations
+  foreach my $entry (@wpuconfigfiles) {
+    if (-r "$dir/$entry") {
+      # add it
+      # print "file $dir/$entry\n";
+      push @configs, CanonicalName("$dir/$entry");
+    }
+  }
+}
+
+# sort all the entries
+@configs = sort @configs;
+
+#foreach my $e (@configs) {
+#  print "$e\n";
+#}
+#print "---\n";
+# remove the double entries
+@configs = uniq @configs;
+
+#foreach my $e (@configs) {
+#  print "$e\n";
+#}
+
+# process and merge the entries
+foreach my $configfile (@configs) {
+  ProcessConfigFile($configfile, \%values);
+}
+
+#print  "package=" , $values{"PACKAGE"},  
+#      " version=", $values{"VERSION"},
+#      " date=", $values{"DATE"}, "\n";
+#print "comment=\"" , $values{"COMMENT"} , "\"\n";
+# print "file args=", join ", ", @ARGV;
+# print "\n";
+
+# set some calculated variables due to the limitation of the @blahblah@
+# method.
+if (exists $values{"VERSION"}) {
+  ($values{"SHORTVERSION"} = $values{"VERSION"}) =~ s/\.//g;
+}
+
+if (exists $values{"PACKAGE"}) {
+  $values{"CAPSPACKAGE"} = uc $values{"PACKAGE"};
+}
+
+if (exists $values{"PACKAGE"} && exists $values{"VERSION"}) {
+  $values{"DIRECTORY"} = $values{"PACKAGE"} . "-" . $values{"VERSION"};
+}
+
+{
+  # call the action
+
+  no strict 'refs';
+
+  &{$values{"ACTION"}};
+
+  exit;
+}
+########## main routine end #################
+
+
+sub syntax {
+  print "Web Publishing Utility\n";
+  print "$script: (c) U. Girlich, 1998, Release $version, $date,\n$comment\n";
+  print "$script options fileargs\n";
+  print "--set NAME=value sets various parameters\n";
+  print "$script\tscans first the environment\n";
+  print "\tthen the command line parameters and\n";
+  print "\tthen config files\n";
+}
+
+sub query {
+  print $values{$values{"VAR"}};
+  print "\n";
+}
+
+sub subst {
+  if (@ARGV != 2) {
+    print "basefile sgmlfile\n";
+    exit 1;
+  }
+  ( my $basein, my $sgmlout ) = @ARGV;
+  my $text = ReadFileToString($basein);
+
+  $text = substvariables($text);
+
+  WriteStringToFile($sgmlout, $text);
+}
+
+sub t2h {
+  if (@ARGV != 2) {
+    print "textfile htmlfile\n";
+    exit 1;
+  }
+  ( my $textin, my $htmlout ) = @ARGV;
+  my $text = ReadFileToString($textin);
+
+  my $title = "";
+  my @body=();
+
+  foreach (split (/\n/,$text)) {
+    if (!$title) {
+      my $line=$_;
+      if ($line =~ /^#!/) { goto out; }
+      $line =~ s#^//##;
+      $line =~ s,^#,,;
+      $line =~ s#^\s*##;
+      $line =~ s#\s*$##;
+      if ($line =~ m#----#) { goto out; }
+      if (length $line > 5) { $title = $line; }
+    }
+    out:
+    s#<#&lt;#g;
+    s#>#&gt;#g;
+    s#([^\s("]+@[^\s),]+)#<a href="mailto:$1">$1</a>#g;
+    s#(http:[^\s]+[^\.\s])#<a href="$1">$1</a>#g;
+    s#(ftp:[^\s]+[^\.\s])#<a href="$1">$1</a>#g;
+    push @body, $_;
+  }
+
+  my $body = join ("\n",@body);
+
+  my $template = "<html>
+<head>
+<title>$title</title>
+</head>
+<body>
+<pre>$body</pre>
+</body>
+</html>
+";
+
+  WriteStringToFile($htmlout, $template);
+}
+
+sub packageindex {
+  if (@ARGV != 2) {
+    print "sgmlfile index.html\n";
+    exit 1;
+  }
+  ( my $sgmlin, my $indexout ) = @ARGV;
+
+  if ($values{"TYPE"} eq "program") {
+    $values{"SUBPACKAGE"} = "-\@QUALITY@";
+  }
+  else {
+    $values{"SUBPACKAGE"} = "";
+  }
+
+  my $HtmlSceleton = "\@BANNER1@
+<HTML>
+<HEAD>
+<TITLE>\@TITLE@</TITLE>
+</HEAD>
+<BASE>
+\@BANNER2@
+<H1>\@TITLE@</H1>
+<H2>\@MYNAME@, <A HREF=\"mailto:\@MYEMAIL@\">\@MYEMAIL@</A></H2>
+v\@VERSION@, \@DATE@
+<P>
+<EM>\@ABSTRACT@</EM>
+<P>
+\@STUFF@\@README@\@DOWNLOAD@\@DOCUMENTATION@<P>
+\@SIG@
+</BASE>
+</HTML>";
+
+  my $ReadmeSceleton = "Please read the 
+<A HREF=\"README\">README</A> online.
+<P>";
+
+  my $DocumentationSceleton = "The \@DOCTYPE@ is available in several formats:
+<DL>
+<DT>HTML
+<DD><A
+HREF=\"\@PACKAGE@.html\"><TT>\@PACKAGE@.html</TT></A>
+<DT>formatted ASCII (to be read with less(1))
+<DD><A HREF=\"\@PACKAGE@.txt\"><TT>\@PACKAGE@.txt</TT></A>
+<DT>unformatted ASCII (for DOS users)
+<DD><A HREF=\"\@PACKAGE@.doc\"><TT>\@PACKAGE@.doc</TT></A>
+<DT>PostScript
+<DD><A HREF=\"\@PACKAGE@.ps\"><TT>\@PACKAGE@.ps</TT></A>
+<DT>SGML source 
+(for <A HREF=\"http://www.sgmltools.org\">SGML-Tools</A> 1.x)
+<DD><A HREF=\"\@PACKAGE@.sgml\"><TT>\@PACKAGE@.sgml</TT></A>
+</DL>
+";
+
+  my $DownloadSceleton = "You can download everything directly from 
+<A HREF=\"\@FTPCDROMBASE@/\"><TT>ftp.cdrom.com</TT></A>
+or look it up in the PlanetQuake FTP mirror list.
+<DL>
+\@DOWNLOADENTRIES@
+</DL>
+<P>
+";
+
+  my $output;
+
+  # prepare BANNER section -------------------------------------------
+  if (! exists $banners{$values{"PACKAGE"}}) {
+    $values{"BANNER1"} = "";
+    $values{"BANNER2"} = "";
+  }
+
+  # prepare ABSTRACT section -----------------------------------------
+  $output = ReadFileToString($sgmlin);
+  $output =~ m|<abstract>(.+)</abstract>|s;
+  # substitute some SGML entities to HTML entries
+  my $abstract = $1;
+  $abstract =~ s/&rsqb;/]/g;
+  $abstract =~ s/&lsqb;/[/g;
+  $values{"ABSTRACT"} = $abstract;
+
+  # prepare README section -------------------------------------------
+  $output = "";
+  if ($values{"TYPE"} eq "program") {
+    $output = $ReadmeSceleton;
+  }
+  $values{"README"} = $output;
+
+  # prepare DOWNLOAD section -----------------------------------------
+  if (exists $values{"DOWNCOUNT"}) {
+    $output="";
+    for (my $count=1;$count<=$values{"DOWNCOUNT"} ; $count++) {
+      my $name;
+      my $desc;
+
+      $name = $values{"DF$count"};
+      $desc = $values{"DD$count"};
+      $output .= "<DT><TT>$name</TT> from 
+<A HREF=\"\@FTPCDROMBASE@/$name\">cdrom.com</A>
+or the 
+<A HREF=\"\@FTPMIRRORBASE@/$name\">mirror list</A>
+<DD>$desc
+";
+    }
+    $values{"DOWNLOADENTRIES"} = $output;
+    $values{"DOWNLOAD"} = $DownloadSceleton;
+  }
+  else {
+    $values{"DOWNLOAD"} = "";
+  }
+  
+  $values{"DOWNLOADENTRIES"} = $output;
+
+  # prepare DOCUMENTATION section ------------------------------------
+  if ($values{"TYPE"} eq "document") {
+    $values{"DOCTYPE"} = "document";
+  }
+  if ($values{"TYPE"} eq "program") {
+    $values{"DOCTYPE"} = "documentation";
+  }
+  if ($values{"TYPE"} eq "misc") {
+    $output = "";
+  }
+  else {
+    $output = $DocumentationSceleton;
+  }
+  $values{"DOCUMENTATION"} = $output;
+
+  # prepare the STUFF section ---------------------------------------
+  if ($values{"TYPE"} ne "misc") {
+    $values{"STUFF"} = "";
+  }
+  # must be set outside (Makefile or something)
+
+  if (exists $values{"INCLUDE"}) {
+    $values{"STUFF"} = ReadFileToString($values{"INCLUDE"});
+  }
+  # larger parts may be read in
+
+  # subst the variables in $HtmlSceleton ----------------------------
+  $output = substvariables ($HtmlSceleton);
+  
+  # write the index file --------------------------------------------
+  WriteStringToFile($indexout, $output);
+}
+
+sub indexpart {
+  if (@ARGV != 2) {
+    print "sgmlfile index-" . $values{"PACKAGE"} . "-" . $values{"VERSION"}
+. ".html\n";
+    exit 1;
+  }
+  ( my $sgmlin, my $indexout ) = @ARGV;
+
+  my $output = "";
+
+  my $aa = "<HTML>
+<HEAD>
+<TITLE>test</TITLE>
+</HEAD>
+<BODY>
+<UL>
+";
+
+my $bb="</UL>
+</BODY>
+</HTML>
+";
+
+  my $HtmlSceleton = "<LI><A NAME=\"\@PACKAGE@\"><B>\@TITLE@</B>
+<A NAME=\"\@PACKAGE@-\@VERSION@\">
+<BLOCKQUOTE>
+<A HREF=\"\@PACKAGE@\@SUBPACKAGE@/\">v\@VERSION@</A>, \@DATE@\@WITHCOMMENT@
+</BLOCKQUOTE>
+";
+
+  $HtmlSceleton = "$aa$HtmlSceleton$bb";
+
+  if ($values{"TYPE"} eq "program") {
+    $values{"WITHCOMMENT"} = ", \@COMMENT@";
+    $values{"SUBPACKAGE"} = "-\@QUALITY@";
+  }
+  else {
+    $values{"WITHCOMMENT"} = "";
+    $values{"SUBPACKAGE"} = "";
+  }
+
+  $output = $HtmlSceleton;
+
+  $output = substvariables($output);
+
+  WriteStringToFile($indexout, $output);
+}
+
+sub mainbase {
+
+  my $HtmlSceleton = "\@BANNER1@
+<HTML>
+<HEAD>
+<TITLE>\@HOMENAME@</TITLE>
+</HEAD>
+<BASE>
+\@BANNER2@
+<H1>\@HOMENAME@</H1>
+You'll find here all the documentation you need to analyse the recordings
+of several computer games.
+<P>
+This is not a polished web page. I write only the content and a
+small Perl script glues everything together.
+<P>
+<UL>
+</UL>
+\@SIG@
+</BASE>
+</HTML>
+";
+
+  if (@ARGV != 1) {
+    print "index.html\n";
+    exit 1;
+  }
+  ( my $indexout ) = @ARGV;
+
+  my $output = "";
+
+  $values{"PACKAGE"} = "";
+  $values{"SUBPACKAGE"} ="";
+
+  $values{"DATE"} = FormatDate(time);
+  $output = substvariables($HtmlSceleton);
+  
+  WriteStringToFile($indexout, $output);
+}
+
+
+sub mainpart {
+  if (@ARGV != 2) {
+    print "somesubdir/indexpart.html index.html\n";
+    exit(1);
+  }
+  (my $part, my $base) = @ARGV;
+
+  my $parttext = ReadFileToString($part);
+  $parttext =~ m|<UL>\n(.+)</UL>|s;
+  $parttext = $1;
+  my @partlines = split "\n", $parttext;
+
+  die "$script: can't read $base: $!\n" unless open BASE, $base;
+  my $basetext = ReadFileToString($base);
+  my $state=1; my $line; my @lines=(); my $pre=""; my $post="";
+  my $entry; my %entries; my %dates; my $MaxDateB=0;
+  while (<BASE>) {
+    if (@lines) {
+      $line = shift @lines;
+      $line .= "\n";
+    }
+    else {
+      $line = $_;
+    }
+    if ($state == 1) {
+      $pre .= $line;
+      if ($line =~ /^\<UL>$/) {
+        $state = 2;
+        @lines = @partlines;
+      }
+    }
+    elsif ($state == 2) {
+      if ($line =~ /^<LI><A NAME="(\S+)">/) {
+        $entry = $1;
+        $entries{$entry} = "";
+      }
+      if ($line =~ m|(\d{1,2}/\d{1,2}/\d{4})|) {
+        if (exists $dates{$entry}) {
+          $dates{$entry} = MaxDateText($dates{$entry}, $1);
+        }
+        else {
+          $dates{$entry} = $1;
+        }
+      }
+      if ($line =~ m|^<A NAME="(\S+)">|) {
+        $entry = $1;
+        $entries{$entry} = "";
+      }
+      if ($line =~ /^<\/UL>\n$/) {
+        $state = 3;
+        foreach my $date (values %dates) {
+          $MaxDateB = MaxDateBin($MaxDateB, ScanDate($date));          
+        }
+        $line = "";
+      }
+      $entries{$entry} .= $line;
+    }
+    elsif ($state == 3) {
+      $post .= $line;
+    }
+    # print "$state";
+    redo if (@lines);
+  }
+
+  $basetext = $pre;
+  foreach my $key (sort keys %entries) {
+    if (exists $dates{$key}) {
+      $entries{$key} =~ m|(\d{1,2}/\d{1,2}/\d{4})|;
+      my $fromdate = $1;
+      my $todate = $dates{$key};
+      $entries{$key} =~ s/$fromdate/$todate/;
+    }
+    $basetext .= $entries{$key};
+  }
+
+  $post =~ m|(\d{1,2}/\d{1,2}/\d{4})|;
+  my $PostDate = $1;
+  my $PostDateB = ScanDate($PostDate);
+  my $MaxDate = FormatDate(MaxDateBin($MaxDateB, $PostDateB));
+  $post =~ s/$PostDate/$MaxDate/;
+
+  $post = "</UL>\n" . $post;
+
+  $basetext .= $post;
+
+  WriteStringToFile($base, $basetext);
+}
+
+sub upload {
+  if (! exists $values{"UPCOUNT"}) {
+    die "UPCOUNT must be set\n";
+  }
+  if (!exists $values{"TEMPDIR"}) {
+    die "TEMPDIR must be set\n";
+  }
+  my $tempdir = CanonicalName (substvariables ($values{"TEMPDIR"}));
+  my @dirparts = split "/" , $tempdir;
+  my $createdir = "";
+  foreach my $dirpart (@dirparts) {
+    $createdir .= "/$dirpart";
+    if (! -e $createdir) {
+      mkdir $createdir, 0755;
+    }
+  }
+  $tempdir = $createdir;
+  my $control = "$tempdir/upload-" . $values{"PACKAGE"} . "-" . $values{"VERSION"};
+  open CONTROL, ">>$control" or die "can't append to $control\n";
+  for (my $i=1; $i<=$values{"UPCOUNT"}; $i++) {
+    my $files_key="UF$i";
+    my $dest_key="UD$i";
+    if (! exists $values{$files_key} || ! exists $values{$dest_key}) {
+      die "$files_key and $dest_key must be set.\n",
+    }
+    my @files = glob substvariables ($values{$files_key});
+    my $dest = substvariables ($values{$dest_key});
+    foreach my $file (@files) {
+      if (! -e $file) {
+        warn "$file does not exist.\n";
+        next;
+      }
+      (my $basename=$file) =~ s|.*/||g;
+      (my $tempname=$file) =~ s|\.\./||;
+      $tempname =~ s|/|,|;
+      my $prefix = $values{"PACKAGE"} . "-" . $values{"VERSION"} . "-";
+      $tempname =~ s|^|$prefix|;
+      my $fulltempname = "$tempdir/$tempname";
+      print CONTROL "$tempname\t$dest/$basename\n";
+      system "cp $file $fulltempname";
+    }
+  }
+  close CONTROL;
+}
+
+
+sub readme {
+  my $readmebasename;
+  my $readmename;
+  if (@ARGV == 2) {
+    ($readmebasename, $readmename) = @ARGV;
+  }
+  else {
+    print "README syntax: $script README.base README\n";
+    exit(1);
+  }
+  readmepackaging(0,$readmebasename, $readmename);
+}
+
+sub packaging {
+  readmepackaging(1);
+}
+
+sub readmepackaging {
+  if (!exists $values{"PACK"}) {
+    print "PACK must be set\n";
+    exit(1);
+  }
+  my $createREADME=0;
+  my $readmebasename; 
+  my $readmename;
+  my $createPACKAGE=shift;
+  if (@_ == 2) {
+    ($readmebasename, $readmename) = @_;
+    $createREADME=1;
+  }
+  elsif (@_ != 0) {
+    print "internale $script error\n";
+    exit(1);
+  }
+
+  # prepare the achive file names
+  foreach my $pack (split //, $values{"GOODPACK"} ) {
+    my $methodkey = "METHOD_$pack";
+    my $method = $values{$methodkey};
+    my $filename;
+    if ($method eq "zipdos" || $method eq "zipwin") {
+      $filename=$values{"PACKAGE"} . $values{"SHORTVERSION"} . "$pack.zip";
+    }
+    elsif ($method eq "tgz") {
+      $filename=$values{"PACKAGE"} . "-" . $values{"VERSION"} . "-$pack.tar.gz";
+    }
+    elsif ($method eq "tbz") {
+      $filename=$values{"PACKAGE"} . "-" . $values{"VERSION"} . "-$pack.tar.bz2";
+    }
+    else {
+      die "wrong method name `$method'\n";
+    }
+    my $filenamekey = "FILENAME_$pack";
+    $values{$filenamekey} = $filename;
+  }
+
+  # create the README sections #######################################
+
+  ## prepare @FILES@ #################################################
+  my $packdb = "./${script}rc";
+  if (!open PACKDB, $packdb) {
+    $packdb = $values{"SRCDIR"} . "/${script}rc";
+    open PACKDB, $packdb or die "$script: can't read $packdb: $!\n";
+  }
+  my $section="";
+  my %PackFiles;
+  my %FileDesc;
+  my %Copyright;
+  my %Note;
+  while (<PACKDB>) {
+
+    chomp;
+
+    if (/\[.+\]/g) { $section=$_; next; }
+
+    if (/^\s*$/) { next; }
+    if (/^#/) { next; }
+
+    if ($section eq "[Files]") {
+      (my $ids,my $file,my @desc) = split;
+      if ($ids=~/$values{"PACK"}/) {
+        $file = substvariables $file;
+        $PackFiles{$file} = $file;
+        $FileDesc{$file} = (join " ", @desc);
+      }
+    }
+
+    if ($section eq "[Copyright]") {
+      (my $file,my @hint) = split;
+      $Copyright{$file} = (join " ", @hint);
+    }
+
+    if ($section eq "[Note]") {
+      (my $file,my @hint) = split;
+      $Note{$file} = (join " ", @hint);
+    }
+
+  }
+  close PACKDB;
+
+  $values{"FILES"} = "";
+  foreach (sort keys %FileDesc) {
+    $values{"FILES"} .= sprintf "./%-20s %s\n", $_, $FileDesc{$_};
+  }
+
+
+  ## prepare @COPYRIGHTS@ ############################################
+  $values{"COPYRIGHTS"}="";
+  foreach (sort keys %Copyright) {
+    if (exists $PackFiles{$_}) {
+      $^A="";
+      my $picture="^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< ~~\n";
+      formline $picture, $Copyright{$_};
+      $values{"COPYRIGHTS"} .= sprintf "\n%s", $^A;
+    }
+  }
+  if ($values{"COPYRIGHTS"} ne "") {
+    $values{"COPYRIGHTS"}="\nCopyrights:\n-----------" . $values{"COPYRIGHTS"};
+  }
+
+ 
+  ## prepare @NOTES@ #################################################
+  $values{"NOTES"}="";
+  foreach (sort keys %Note) {
+    if (exists $PackFiles{$_}) {
+      $^A="";
+      my $picture="^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< ~~\n";
+      formline $picture, $Note{$_};
+      $values{"NOTES"} .= sprintf "\n%s", $^A;
+    }
+  }
+  if ($values{"NOTES"} ne "") {
+    $values{"NOTES"}="\nNotes:\n------" . $values{"NOTES"};
+  }
+
+
+  ## prepare @PACKAGES@ ##############################################
+  $values{"PACKAGES"} = "";
+  foreach my $pack (split //, $values{"GOODPACK"} ) {
+    $values{"PACKAGES"} .= sprintf "%-30s %s\n", 
+	$values{"FILENAME_$pack"},
+	$values{"COMMENT_$pack"}; 
+  }
+
+  # manipulate the README
+  if ($createREADME)  {
+    my $readmebase = ReadFileToString($readmebasename);
+    my $readme = substvariables($readmebase);
+    WriteStringToFile($readmename, $readme);
+  }
+
+  # prepare the packaging
+  if ($createPACKAGE) {
+    my $filename = $values{"FILENAME_" . $values{"PACK"}};
+    my $method = $values{"METHOD_" . $values{"PACK"}};
+
+    ## remove the old archive
+    unlink "../$filename";
+
+    ## create the new archive
+    my $currdir = cwd();
+    chdir "..";
+
+    ### method zipdos
+    if ($method eq "zipdos") {
+      my $command = $values{"ZIP"} . " -9k $filename " .
+  		join (" ", map $values{"DIRECTORY"} . "/$_", sort keys %PackFiles);
+      system $command;
+    }
+    ### method zipwin
+    elsif ($method eq "zipwin") {
+      my $command = $values{"ZIP"} . " -9 $filename " .
+  		join (" ", map $values{"DIRECTORY"} . "/$_", sort keys %PackFiles);
+      system $command;
+    }
+    ### method tgz 
+    elsif ($method eq "tgz") {
+      my $command = $values{"TAR"} . " czvhf $filename ".
+  		join (" ", map $values{"DIRECTORY"} . "/$_", sort keys %PackFiles);  
+      system $command;
+    }
+    ## method tbz
+    elsif ($method eq "tbz") {
+      my $command = $values{"TAR"} . " cIvhf $filename ". 
+                  join (" ", map $values{"DIRECTORY"} . "/$_", sort keys %PackFiles);
+      system $command;
+    }
+  }
+}
+
+
+sub mergehash {
+  (my $dest, my $src) = @_;
+  map { $$dest{$_} = $$src{$_} } keys %$src;
+}
+
+
+sub substvariables {
+  (my $string) = @_;
+  my $value; my $from; my $to; 
+  my $count;
+  do {
+    $count = 0;
+    foreach $value (keys %values) {
+      $from = "@" . $value . "@";
+      $to = $values{$value};
+      $count += ($string =~ s/$from/$to/g);
+    } 
+  } while($count);
+  return $string;
+}
+
+sub ReadFileToString {
+  (my $filename) = @_;
+
+  die "$script: can't read $filename\n" unless open FILE, "$filename";
+  my $sep = $/;
+  $/ = '';
+  my $text ="";
+  while (<FILE>) {
+    $text .= $_;
+  }
+  close FILE;
+  $/ = $sep;
+  return $text;
+}
+
+sub WriteStringToFile {
+  (my $filename, my $text) = @_;
+
+  die "$script: can't write $filename\n" unless open FILE, ">$filename";
+  print FILE $text;
+  close FILE;
+}
+
+sub FormatDate {
+  (my $time) = @_;
+  my $string = "";
+
+  (my $mday,my $mon,my $year) = (localtime($time))[3,4,5];
+  $string = sprintf("%d/%d/%d", $mon + 1, $mday, 1900 + $year);  
+  return $string;
+}
+
+
+sub ScanDate {
+  (my $string) = @_;
+
+  $string =~ m|(\d{1,2})/(\d{1,2})/(\d{4})|;
+
+  (my $mon,my $mday, my $year) = ($1,$2,$3);
+  return (POSIX::mktime(0,0,0,$mday,$mon - 1,$year - 1900));
+}
+
+
+sub MaxDateBin {
+  (my $a, my $b) = @_;
+  return (($a > $b) ? $a : $b); 
+}
+
+
+sub MaxDateText {
+  (my $a, my $b) = @_;
+  return FormatDate(MaxDateBin(ScanDate($a), ScanDate($b)));
+}
+
+
+sub CanonicalName {
+  my $basedir; my $name;
+  if (scalar @_ == 2) {
+    ($basedir, $name) = @_;
+  }
+  elsif (scalar @_ == 1) {
+    $basedir = cwd();
+    ($name) = @_;
+  }
+  else {
+    die "calling CanonicalName with " . scalar @_ . " parameters\n"; 
+  }
+  # print STDERR "processing $name -> ";
+  if ($name =~ m|^[^/]|) {
+    $name = "$basedir/$name";
+  }
+  my $count;
+  do {
+    $count=0;
+    $count += ($name =~ s|/$||);
+    $count += ($name =~ s|/\.$||);
+    $count += ($name =~ s|/\.?/|/|);
+    $count += ($name =~ s|[^/]+/\.\.||);
+  } while ($count);
+  # print "$name\n";
+  return $name;
+}
+
+# uniq: remove double entries from a sorted list
+sub uniq {
+  my @oldlist=@_;
+  my @newlist=();
+  my $entry;
+  my $lastentry=undef;
+
+  foreach my $entry (@oldlist) {
+    if (!defined $lastentry) { goto PUSHIT; }
+    next if $entry eq $lastentry;
+    PUSHIT:
+    push @newlist, $entry;
+    $lastentry=$entry;
+  }
+
+  return @newlist;
+}
+
+sub ProcessConfigFile {
+  (my $filename, my $hashref) = @_;
+  my $template;
+
+  open FILE, $filename || return;
+  # print "processing $filename\n";
+  my $state=0;
+  while (<FILE>) {
+    chop;
+    my $line = $_;
+    # look for a template line
+    if ($state == 0) {
+      if ($line =~ m|${script} parse start\s+/([^\s]+)/\s*|) {
+        $template = $1;
+        $state = 1;
+        # print "state=1, template=`$template'\n";
+        next;
+      }
+    }
+    # look for the end of the definition lines
+    if ($state == 1) {
+      if ($line =~ m|${script} parse end|) {
+        $state = 0;
+        next;
+      }
+      # get the definition
+      if ($line =~ /$template/) {
+        $$hashref{$1} = $2;
+      }
+    }
+  }
+  close FILE;  
+}
+
+
+sub GetSubstValue{
+  (my $key) = @_;
+
+  return substvariables $values{$key};
+}

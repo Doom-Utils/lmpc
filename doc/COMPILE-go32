@@ -1,0 +1,192 @@
+#!/bin/sh
+
+# COMPILE-go32
+# Compile a C and C++ cross-compiler for go32 MS-DOS binaries under Linux.
+# (C) Uwe Girlich
+# 11 December 1999
+# It takes about 15 minutes on my 400MHz Pentium II.
+
+
+set -e
+set -x
+
+
+# This is my private prefix.
+PREFIX=/usr/self/go32
+
+
+# I did it with these versions.
+GCC_VERSION=2.95.2
+BINUTILS_VERSION=2.9.5.0.8
+
+
+# Get all the necessary files (binutils,gcc,djcrx201.zip)
+# and adapt the following lines accordingly.
+ARCHIVE_DIR=/rest/files/linux/gnu
+BINUTILS_BASENAME=binutils-${BINUTILS_VERSION}
+BINUTILS_FILE=$ARCHIVE_DIR/binutils/${BINUTILS_BASENAME}.tar.bz2
+GCC_BASENAME=gcc-${GCC_VERSION}
+GCC_FILE=$ARCHIVE_DIR/gcc/${GCC_BASENAME}.tar.gz
+DJCRX_FILE=$ARCHIVE_DIR/go32/djcrx201.zip
+
+
+# You might prefer different options.
+MYCC=gcc
+MYCFLAGS="-O3 -mpentiumpro"
+
+
+# If something went wrong, here you can comment a line to leave 
+# some parts of the whole thing out.
+CONFIGURE_BINUTILS=yes
+MAKE_BINUTILS=yes
+INSTALL_BINUTILS=yes
+CLEAN_BINUTILS=yes
+MAKE_DJGPP=yes
+CONFIGURE_GCC=yes
+MAKE_GCC=yes
+INSTALL_GCC=yes
+CLEAN_GCC=yes
+CLEAN_DJGPP=yes
+
+
+##############################################################################
+# You should not change anything below this point.
+ARCH=i386-pc-msdosdjgpp
+BASE=`pwd`
+BINUTILS_BUILDDIR=binutils-build
+GCC_BUILDDIR=gcc-build
+
+
+
+##############################################################################
+if [ $CONFIGURE_BINUTILS ]; then
+
+	cd ${BASE}
+	bzip2 -dc ${BINUTILS_FILE} | tar xvf -
+	mkdir ${BINUTILS_BUILDDIR}
+	cd ${BINUTILS_BUILDDIR}
+	env CC=${MYCC} \
+		../${BINUTILS_BASENAME}/configure \
+		--target=${ARCH} \
+		--prefix=${PREFIX}
+
+fi # CONFIGURE_BINUTILS ------------------------------------------------------
+
+
+
+##############################################################################
+if [ $MAKE_BINUTILS ]; then
+
+	cd ${BASE}/${BINUTILS_BUILDDIR}
+	make CFLAGS="$MYCFLAGS"
+
+fi # MAKE_BINUTILS -----------------------------------------------------------
+
+
+
+##############################################################################
+if [ $INSTALL_BINUTILS ]; then
+
+	cd $BASE/${BINUTILS_BUILDDIR}
+	make CFLAGS="$MYCFLAGS" install
+
+fi # INSTALL_BINUTILS --------------------------------------------------------
+
+
+
+##############################################################################
+if [ $CLEAN_BINUTILS ]; then
+
+	rm -rf ${BASE}/${BINUTILS_BASENAME}
+	rm -rf ${BASE}/${BINUTILS_BUILDDIR}
+
+fi # CLEAN_BINUTILS ----------------------------------------------------------
+
+
+
+##############################################################################
+if [ $MAKE_DJGPP ]; then
+
+	mkdir -p ${PREFIX}/${ARCH}/bin
+	cd ${BASE}
+	mkdir djgpp
+	cd djgpp
+	unzip -a ${DJCRX_FILE}
+	cd src/stub
+	${MYCC} ${MYCFLAGS} -o stubify stubify.c
+	cp stubify ${PREFIX}/${ARCH}/bin
+	${MYCC} ${MYCFLAGS} -o stubedit stubedit.c
+	cp stubedit ${PREFIX}/${ARCH}/bin
+	cd ${BASE}/djgpp/lib
+	# we get some files better from the standard distribution
+	rm specs
+	rm libgcc.a
+
+fi # MAKE_DJGPP --------------------------------------------------------------
+
+
+
+##############################################################################
+if [ $CONFIGURE_GCC ]; then
+
+	cd ${BASE}
+	gzip -dc ${GCC_FILE} | tar xvf -
+	mkdir ${GCC_BUILDDIR}
+	cd ${GCC_BUILDDIR}
+	env CC="$MYCC" \
+		../${GCC_BASENAME}/configure \
+		--target=${ARCH} \
+		--prefix=${PREFIX} \
+		--with-gnu-as \
+		--with-gnu-ld \
+		--enable-languages=c++ \
+		--with-headers=${BASE}/djgpp/include \
+		--with-libs=${BASE}/djgpp/lib
+
+fi # CONFIGURE_GCC -----------------------------------------------------------
+
+
+
+##############################################################################
+if [ $MAKE_GCC ]; then
+
+	cd ${PREFIX}/${ARCH}
+	ln -s sys-include include
+
+	PATH=${PATH}:${PREFIX}/bin
+	cd ${BASE}/${GCC_BUILDDIR}
+	make CFLAGS="$MYCFLAGS" CC="$MYCC"
+
+fi # MAKE_GCC ----------------------------------------------------------------
+
+
+
+##############################################################################
+if [ $INSTALL_GCC ]; then
+
+	cd ${BASE}/${GCC_BUILDDIR}
+	PATH=${PATH}:${PREFIX}/bin
+	make CFLAGS="$MYCFLAGS" CC="$MYCC" install
+
+fi # INSTALL_GCC -------------------------------------------------------------
+
+
+
+##############################################################################
+if [ $CLEAN_GCC ]; then
+
+	rm -rf ${BASE}/${GCC_BASENAME}
+	rm -rf ${BASE}/${GCC_BUILDDIR}
+
+fi # CLEAN_GCC ---------------------------------------------------------------
+
+
+
+##############################################################################
+if [ $CLEAN_DJGPP ]; then
+
+	rm -rf ${BASE}/djgpp
+
+fi # CLEAN_DJGPP -------------------------------------------------------------
+
+

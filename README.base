@@ -1,0 +1,79 @@
+This is @CAPSPACKAGE@ @VERSION@ (@COMMENT@), @COMMENT_@PACK@@
+
+@HINT_@QUALITY@@
+
+LMPC is the Little Movie Processing Centre.
+LMPC helps you to handle LMP, DMO, DEM, QWD and DM2 files.
+DEM files are supported more extensive with
+DEMA, The DEM Text File Analyser,
+DEMcut, The DEM file cutter tool and
+DBS, The Demo Broadcasting Server
+DM2cat, The DM2 file concatenator is included as well.
+
+Look in the doc subdirectory for a full documentation. 
+
+Features: 
+---------
+ * LMPC: The Little Movie Processing Centre
+   + many supported games:
+     - old DOOM (version < 1.4)
+     - new DOOM (version >= 1.4)
+     - Ultimate DOOM
+     - DOOM ][ (all versions)
+     - HERETIC (all versions)
+     - HEXEN (all versions)
+     - STRIFE (Shareware)
+     - Duke Nukem 3D (Shareware versions 1.0, 1.1 and 1.3D)
+     - Redneck Rampage (demo version 0.7 alpha), not fully supported
+     - Quake (versions 0.91 .. 1.09)
+     - QuakeWorld (version 1.64 .. 2.30)
+     - Quake II (versions 3.05 .. 3.20 + relay extensions)
+   + get information about one or more LMP/DMO/DEM/QWD/DM2 files
+   + change the version of an existing LMP file
+   + change the player number who recorded the multi-player LMP file
+   + add some seconds of waiting at the end of a LMP file
+   + remove the PAUSE parts of LMP files
+   + repair multi-level DEM and DM2 files
+   + decompile (a part of) a LMP/DMO/DEM/QWD/DM2 file (binary) to a 
+     Lmp Source (LS) file (ASCII text)
+   + compile one or more LMP/DEM/QDW/DM2 text files to a LMP/DEM/QWD/DM2 
+     binary file
+ * DEMA: The DEM Text File Analyser
+   + prints some statitics about a demo file (Perl script)
+ * DEMcut: The DEM file cutter tool
+   + cut parts out of a DEM file
+   + change the play-back speed
+   + play a DEM file backwards
+   + join easily parts of different (even multi-player) DEM files
+ * DBS: The Demo Broadcasting Server
+   + due to the many limits in Microsoft OSes, it works in Unix only
+   + fake Quake server
+   + may be `Qspy'ed
+   + if connected, plays a prepared DEM file to any client
+ * DM2cat: The DM2 file concatenator
+   + concats binary DM2 files together (Perl script)
+ * full source code is available for everything
+     This is free software, and you are welcome to redistribute it under 
+     certain conditions; read the GNU General Public Licence for details.
+ * precompiled binaries are available for
+   + Linux (egcs-2.91.66, glibc, x86) 
+   + MS-DOS (egcs-2.91.66, cross-compiled like djgpp V2.0 (go32))
+   + Win32 (cross-compiled with the Cygwin toolset B20.1 (egcs-2.91.57),
+       needs cygwin1.dll)
+   + Win32 (cross-compiled with the Cygwin toolset B20.1 (egcs-2.91.57)
+       and Mingw32, does not need any additional DLLs)
+
+Files: 
+------
+@FILES@@COPYRIGHTS@@NOTES@
+Packages:
+---------
+Due to the big size of the executables I distribute LMPC in different packages:
+
+@PACKAGES@
+Get the latest release from my @HOMENAME@
+@HOMEURL@
+
+
+@MYNAME@, @DATE@
+@MYEMAIL@

@@ -1,0 +1,134 @@
+#! @PERL@ -w
+#   lmpc -- the Little Movie Processing Centre
+#   Copyright (C) 1994-99 Uwe Girlich
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+#   Uwe Girlich
+#   Erika-von-Brockdorff-Strasse 2
+#   04159 Leipzig
+#   Deutschland / Germany
+#   E-mail: Uwe.Girlich@itp.uni-leipzig.de
+
+#****************************************************************************#
+#  dema  -  The DEM Text File Analyser                                       #
+#****************************************************************************#
+
+# this will be absorbed in command line switches
+# level time
+$Options{"t"}=1;
+# time step between client updates
+$Options{"s"}=1;
+# number of levels
+$Options{"l"}=1;
+# level names
+$Options{"n"}=1;
+
+($ScriptName = $0) =~ s{.*/}{};
+
+$HelpText="usage:
+$ScriptName demtxt [demtxt2 ..]
+";
+
+die $HelpText unless (@DemTexts=@ARGV)>=1;
+
+FileLoop: for (@DemTexts) {
+  $filename=$_;
+
+  next FileLoop unless open DEMTXT, $filename;
+
+  $NumLevels = 0;
+  while (<DEMTXT>) {
+    $line = $_;
+    if ($line =~ /\sserverinfo\s/) {
+      $NumLevels++;
+      $PlayTime[$NumLevels]=0.0;
+      $LevelTime[$NumLevels]=0.0;
+      $PlayTics[$NumLevels]=0.0;
+      $last = 0.0;
+      $StopTime=0;
+    }
+    if ($line =~ /\smapname\s/) {
+      if (exists $Options{"n"}) {
+        ($MapName[$NumLevels]) = $line=~/\s*mapname\s+"([^"]+)";/;
+      }
+    }
+    if ($line =~ /\stime\s/) {
+      if (exists $Options{"t"} || exists $Options{"s"}) {
+        if (!$StopTime) {
+          $h=0;
+          $m=0;
+          $s=0;
+          ($time) = /\s*time\s*(.*);/;
+          if ($time =~ /h/) {
+            ($h,$m,$s) = $time =~ /(\d+):(\d):(.+)h/;
+          }
+          if ($time =~ /m/) {
+            ($m,$s) = $time =~ /(\d+):(.+)m/;
+          }
+          if ($time =~ /s/) {
+            ($s) = $time =~ /(.+)s/;
+          }
+          $rt = $s + 60*$m + 3600*$h;
+          $new = $rt - $last;
+          if (0.0<$new && $new<1.0) {
+            $PlayTime[$NumLevels] += $new;
+            $PlayTics[$NumLevels]++;
+          }
+          $last = $rt;
+          $LevelTime[$NumLevels] = $rt;
+        }
+      }
+    }
+    if ($line =~ /\sintermission;/) {
+      $StopTime=1;
+    }
+  }
+
+  for ($i=1;$i<=$NumLevels;$i++) {
+    if (exists $Options{"s"}) {
+      $StepTime[$i] = $PlayTime[$i] / $PlayTics[$i];
+    }
+  }
+
+  print "$filename: ";
+  $nothing=1; 
+  if (exists $Options{"l"}) {
+    if (!$nothing) { print ", "; }
+    print "levels=$NumLevels";
+    $nothing = 0;
+  }
+  print "\n";
+  for ($i=1;$i<=$NumLevels;$i++) {
+    $nothing=1; 
+    if (exists $Options{"n"}) {
+      if (!$nothing) { print ", "; }
+      print "mapname=$MapName[$i]";
+      $nothing = 0;
+    }
+    if (exists $Options{"t"}) {
+      if (!$nothing) { print ", "; }
+      print "time=$LevelTime[$i]s";
+      $nothing = 0;
+    }
+    if (exists $Options{"s"}) {
+      if (!$nothing) { print ", "; }
+      print "step=$StepTime[$i]s";
+      $nothing = 0;
+    }
+    if (!$nothing) { print "\n"; }
+  }
+}
+

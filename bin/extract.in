@@ -1,0 +1,253 @@
+#! @PERL@ -w
+
+use strict;
+
+sub basename;
+
+my $GPLHead = "/*  lmpc -- the Little Movie Processing Centre
+    Copyright (C) 1994-99 Uwe Girlich
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    Uwe Girlich
+    Dantestrasse 20
+    04159 Leipzig
+    Deutschland / Germany
+    E-mail: Uwe.Girlich\@itp.uni-leipzig.de */
+
+";
+
+
+my $SpecsHint = "/*
+ * This file was created automatically out of the %s specs.
+ * This ensures the necessary equvivalence and simplifies my task of writing
+ * corresponding specs and programs.
+ */
+
+";
+
+
+my $srcdir="/home/uwe/pq/demospecs/dm2-1.0.3";
+my $dstdir=".";
+my $file_type = ".c";
+extract_all("dm2","temp_entity","te");
+
+sub extract_all
+{
+  my ($sys,$message,$filesuffix) = @_;
+
+  $message =~ s/_/&lowbar;/g;
+
+  extract_var        ($sys, $message, $filesuffix, 1);
+  extract_bin_to_var ($sys, $message, $filesuffix, 2);
+  extract_var_to_tree($sys, $message, $filesuffix, 3);
+}
+
+
+sub extract_var
+{
+  my ($sys, $message, $filesuffix, $number) = @_;
+
+  my $infile = sprintf "%s/%s.base", $srcdir, $sys;
+  my $outfile = sprintf "%s/u%s-%s%d%s", $dstdir, $sys, $filesuffix, $number, $file_type;
+
+  open INFILE, "<$infile" || die "can't read '$infile'\n";
+  open OUTFILE, ">$outfile" || die "can't write '$outfile'\n";
+  my $state = 0;
+  while (<INFILE>) {
+    chop;
+    if (!$state) {
+      if (m#<sect1>$message<p><descrip><tag><tt>#) {
+        $state = 1;
+      }
+    }
+    if ($state == 1) {
+      if (m#^<tag>variables</tag>\s*$#) {
+        $state = 2;
+        print OUTFILE $GPLHead;
+        printf OUTFILE $SpecsHint, uc $sys;
+        printf OUTFILE "/* %s */\n\n", basename $outfile;
+        printf OUTFILE "/* variable definition */\n\n";
+      }
+    }
+    if ($state == 2) {
+      if (m#<tag>parse routine</tag>#) {
+        $state = 3;
+      }
+      my $count=0;
+      if (my @regs = m#^<tag><tt>(\w+)\s+([\w\,\s]+);</tt></tag>(&nbsp;)? ?#) {
+        my $type = shift @regs;
+        my $var = shift @regs;
+        my $init = shift @regs;
+        my $line = "$type $var";
+        if (defined $init && $type eq "long") {
+          $line .= " = 0";
+        }
+        $line .= ";";
+        print OUTFILE "$line\n";
+      }
+    }
+  }
+  close INFILE;
+  close OUTFILE;
+}
+
+sub extract_bin_to_var
+{
+  my ($sys, $message, $filesuffix, $number) = @_;
+
+  my $infile = sprintf "%s/%s.base", $srcdir, $sys;
+  my $outfile = sprintf "%s/u%s-%s%d%s", $dstdir, $sys, $filesuffix, $number, $file_type;
+
+  open INFILE, "<$infile" || die "can't read '$infile'\n";
+  open OUTFILE, ">$outfile" || die "can't write '$outfile'\n";
+  my $state = 0;
+  while (<INFILE>) {
+    chop;
+    if (!$state) {
+      if (m#<sect1>$message<p><descrip><tag><tt>#) {
+        $state = 1;
+      }
+    }
+    if ($state == 1) {
+      if (m#<tscreen><verb>#) {
+        $state = 2;
+        print OUTFILE $GPLHead;
+        printf OUTFILE $SpecsHint, uc $sys;
+        printf OUTFILE "/* %s */\n\n", basename $outfile;
+        printf OUTFILE "/* read binary into variables */\n\n";
+      }
+    }
+    if ($state == 2) {
+      if (m#</verb></tscreen>#) {
+        $state = 3;
+      }
+      s#</?tscreen>##;
+      s#</?verb>##;
+      s#//(.+)#/*$1 */#;
+      s#(\W)TE_#$1DM2_TE_#g;
+      s#error\(\"CL_ParseTEnt: bad type\"\);#syserror(WDM2, DM2TOP->filename);#;
+      s#serverversion#SERVERVERSION#g;
+      s#impact_entity#impact_entity_1#;
+      s#line_entity#line_entity_1#;
+      s#ReadByte;#ReadByte(m);#;
+      s#ReadShort;#ReadShort(m);#;
+      s#ReadLong;#ReadLong(m);#;
+      s#ReadPosition\(#ReadPosition(m, #;
+      s#ReadDir\(#ReadDir(m, #;
+      print OUTFILE "$_\n";
+    }
+  }
+  close INFILE;
+  close OUTFILE;
+}
+
+
+sub extract_var_to_tree
+{
+  my ($sys, $message, $filesuffix, $number) = @_;
+
+  my $infile = sprintf "%s/%s.base", $srcdir, $sys;
+  my $outfile = sprintf "%s/u%s-%s%d%s", $dstdir, $sys, $filesuffix, $number, $file_type;
+
+  open INFILE, "<$infile" || die "can't read '$infile'\n";
+  open OUTFILE, ">$outfile" || die "can't write '$outfile'\n";
+  my $state = 0;
+  while (<INFILE>) {
+    chop;
+    if (!$state) {
+      if (m#<sect1>$message<p><descrip><tag><tt>#) {
+        $state = 1;
+      }
+    }
+    if ($state == 1) {
+      if (m#<tscreen><verb>#) {
+        $state = 2;
+        print OUTFILE $GPLHead;
+        printf OUTFILE $SpecsHint, uc $sys;
+        printf OUTFILE "/* %s */\n\n", basename $outfile;
+        printf OUTFILE "/* create tree from the variables */\n\n";
+      }
+    }
+    if ($state == 2) {
+      if (m#</verb></tscreen>#) {
+        $state = 3;
+      }
+      s#</?tscreen>##;
+      s#</?verb>##;
+      s#//(.+)#/*$1 */#;
+      s#(\W)TE_#$1DM2_TE_#g;
+      s#error\(\"CL_ParseTEnt: bad type\"\);#syserror(WDM2, DM2TOP->filename);#;
+      s#serverversion#SERVERVERSION#g;
+      s#impact_entity#impact_entity_2#;
+      s#line_entity#line_entity_2#;
+      if (m#(\s*)([\w]+)\s*=\s*ReadByte;#) {
+        my $space = $1;
+        my $var = $2;
+        my $token = "TOKEN_" . ( uc $var );
+        my $line = "${space}tn = node_link(tn,node_command_init($token,V_INT,H_BYTE,
+                  ${space}NODE_VALUE_INT_dup($var),0));";
+        $_ = $line;
+      }
+      if (m#(\s*)([\w]+)\s*=\s*ReadShort;#) {
+        my $space = $1;
+        my $var = $2;
+        my $token = "TOKEN_" . ( uc $var );
+        my $line = "${space}tn = node_link(tn,node_command_init($token,V_INT,H_SHORT,
+                  ${space}NODE_VALUE_INT_dup($var),0));";
+        $_ = $line;
+      }
+      if (m#(\s*)([\w]+)\s*=\s*ReadLong;#) {
+        my $space = $1;
+        my $var = $2;
+        my $token = "TOKEN_" . ( uc $var );
+        my $line = "${space}tn = node_link(tn,node_command_init($token,V_INT,H_LONG,
+                  ${space}NODE_VALUE_INT_dup($var),0));";
+        $_ = $line;
+      }
+      if (m#(\s*)ReadPosition\(([\w]+)\);#) {
+        my $space = $1;
+        my $var = $2;
+        my $token = "TOKEN_" . ( uc $var );
+        my $line = "${space}tn = node_link(tn,node_triple_command_init($token,V_FLOAT,H_COORD,
+                  ${space}NODE_VALUE_FLOAT_dup($var\[0\]),
+                  ${space}NODE_VALUE_FLOAT_dup($var\[1\]),
+                  ${space}NODE_VALUE_FLOAT_dup($var\[2\]),0));";
+        $_ = $line;
+      }
+      if (m#(\s*)ReadDir\(([\w]+)\);#) {
+        my $space = $1;
+        my $var = $2;
+        my $token = "TOKEN_" . ( uc $var );
+        my $line = "${space}tn = node_link(tn,node_triple_command_init($token,V_FLOAT,H_DIR,
+                  ${space}NODE_VALUE_FLOAT_dup($var\[0\]),
+                  ${space}NODE_VALUE_FLOAT_dup($var\[1\]),
+                  ${space}NODE_VALUE_FLOAT_dup($var\[2\]),0));";
+        $_ = $line;
+      }
+      print OUTFILE "$_\n";
+    }
+  }
+  close INFILE;
+  close OUTFILE;
+}
+
+
+sub basename
+{
+  (my $file) = @_;
+  $file =~ s,.*/,,g;
+  return $file;
+}

@@ -1,0 +1,83 @@
+#! /usr/bin/perl -w
+
+use strict;
+
+sub substvariables;
+
+my %values = ();
+my @token=();
+
+(my $script = $0) =~ s#.*/##g;
+
+# printf STDERR "aaaaaaaaaaaaa srcdir=" . $ENV{"srcdir"} . "aaaaaaaaaa\n";
+# for (keys %ENV) { print STDERR "aaaaaaaaaaa " . $_ . " = " . $ENV{$_} . " aaaa\n"; }
+
+while (my $file=shift) {
+  if (!open FILE, $file) {
+    open FILE, $ENV{"srcdir"} . "/" . $file or die "$script: can't read $file: $!\n";
+  }
+  while (<FILE>) {
+    if (/\bTOKEN_(\w+)\b/) {
+      push @token, lc $1;
+    }
+  }
+  close FILE;
+}
+@token = sort keys %{ { map { $_, 1 } @token } };
+
+# for (@token) { print "$_\n"; }
+
+my $value;
+
+############################################################
+# TOKENLIST
+
+$value = "";
+for my $token (@token) {
+  $value .= sprintf "%s\n", $token;
+}
+$values{"TOKENLIST"} = $value;
+
+############################################################
+# LEXTOKEN
+
+$value = "";
+for my $token (@token) {
+  $value .= sprintf "<norm>%s { RETURN_TOKEN(TOKEN_%s); }\n\n", $token, uc $token;
+}
+$values{"LEXTOKEN"} = $value;
+
+############################################################
+# YACCTOKEN
+
+$value = "";
+for my $token (@token) {
+  $value .= sprintf "%%token TOKEN_%s\n", uc $token;
+}
+$values{"YACCTOKEN"} = $value;
+
+############################################################
+
+my $text = join "", <STDIN>;
+$text = substvariables($text);
+print $text;
+
+exit 0;
+
+sub substvariables {
+  (my $string) = @_;
+  my $value; my $from; my $to;
+  my $count;
+  do {
+    $count = 0;
+    foreach $value (keys %values) {
+      $from = "@" . $value . "@";
+      $to = $values{$value};
+      # print "$from: OK\n" if $string =~ m/$from/;
+      $count += ($string =~ s/$from/$to/g);
+      # print "`$from' -> `$to' : $count\n";
+    }
+  } while($count);
+  return $string;
+}
+

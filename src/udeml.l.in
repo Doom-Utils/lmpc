@@ -1,0 +1,223 @@
+/*  lmpc -- the Little Movie Processing Centre
+    Copyright (C) 1994-99 Uwe Girlich
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    Uwe Girlich
+    Dantestrasse 20
+    04159 Leipzig
+    Deutschland / Germany
+    E-mail: Uwe.Girlich@itp.uni-leipzig.de */
+
+/****************************************************************************\
+|  udeml.l - lex source for DEM file parsing                                 |
+\****************************************************************************/
+
+/* %option noyywrap never-interactive */
+
+%{
+#ifdef HAVE_CONFIG_H
+  #include <config.h>
+#endif
+#include "node.h"          /* nodes */
+#define YYSTYPE nodep
+#include <errno.h>         /* for ENOMEM */
+#include <stdio.h>         /* for fileno in the created flex code */
+#include "udem.h"
+#include "tools.h"         /* for syserror */
+#include "udemy.h"         /* yyparse */
+#include <math.h>          /* for atof */
+#include <string.h>        /* for strdup */
+#ifdef HAVE_MEMORY_H
+  #include <memory.h>
+#endif
+#define RETURN_TOKEN(_t_) yylval = node_init(_t_,NULL,linenumber); return (_t_)
+void yyerror(char *s);
+
+int linenumber = 1;
+
+int first_lex = 1;
+
+%}
+
+DIGIT [0-9]
+XDIGIT [0-9a-fA-F]
+NL \r?\n
+
+		/* ias stands for: is a string, n for: normal. */
+		/* Every single rule has a start condition, so we can */
+		/* use the more traditional s (inclusive) start conditions */
+		/* The AT&T lex can't handle x (exclusive) start conditions */
+		/* at all! */
+%s ias norm
+
+%%
+
+%{
+	char string_buf[MAX_STRING_SIZE];
+	char* string_buf_ptr=NULL;
+
+	/* look for lexing start */
+	if (first_lex) {
+		/* start with <norm> start condition */
+		BEGIN(norm);
+		/* now switch it off */
+		first_lex = 0;
+	}
+
+%}
+
+<norm>\/\/.*{NL} {		/* eat up C++ like comments */
+			linenumber++;
+		}
+
+<norm>\"			string_buf_ptr = string_buf; BEGIN(ias);
+
+<ias>\" { /* saw closing quote - all done */
+			char* tv;
+
+			BEGIN(norm);
+			*string_buf_ptr = '\0';
+
+			if ((tv = strdup(string_buf))==NULL) syserror(ENOMEM, "strdup");
+			yylval = node_init_all(V_STRING, H_STRING, (void*) tv, linenumber);
+			return v_string;
+		}
+
+<ias>{NL} { /* unterminated string constant */
+			linenumber++;
+			fprintf(stderr,"line number %i\n", linenumber);
+			syserror(DP_SC,"");
+		}
+
+<ias>\\[0-7]{1,3} { /* octal escape sequence */
+			int result;
+
+			(void) sscanf( yytext + 1, "%o", &result );
+			if ( result > 0xff ) {
+			  /* error, constant is out-of-bounds */
+			  fprintf(stderr,"line number %i\n", linenumber);
+			  syserror(DP_OOB,"");
+			}
+
+			*string_buf_ptr++ = result;
+		}
+
+<ias>\\n {
+			*string_buf_ptr++ = '\n';
+		}
+
+<ias>\\r {
+			*string_buf_ptr++ = '\r';
+		}
+
+<ias>\\(.|\n) {
+			*string_buf_ptr++ = yytext[1];
+		}
+
+<ias>[^\\\r\n\"]+ {
+			char *yptr = yytext;
+
+			while ( *yptr )
+			  *string_buf_ptr++ = *yptr++;
+		}
+
+@LEXTOKEN@
+<norm>\-?{DIGIT}+ { 
+			long value;
+			long* tv;
+
+			value = atoi(yytext);
+			if ((tv = (long*) malloc(sizeof(long)))==NULL) 
+				syserror(ENOMEM,"V_INT");
+			memcpy(tv, &value, sizeof(long));
+			yylval = node_init(V_INT,tv,linenumber);
+			
+			return v_int;
+		}
+
+<norm>0[xX]{XDIGIT}+ {
+			long value;
+			long* tv;
+
+			sscanf(yytext+2, "%lx", &value);
+			if ((tv = (long*) malloc(sizeof(long)))==NULL)
+				syserror(ENOMEM,"V_INT");
+			memcpy(tv, &value, sizeof(long));
+			yylval = node_init(V_INT,tv,linenumber);
+
+			return v_int;
+		}
+
+<norm>\-?{DIGIT}+"."{DIGIT}*([eE][-+]?{DIGIT}+)? {
+			float value;
+			float* tv;
+
+			value = atof(yytext);
+			if ((tv = (float*) malloc(sizeof(float)))==NULL) 
+				syserror(ENOMEM,"V_FLOAT");
+			memcpy(tv, &value, sizeof(float));
+			yylval = node_init(V_FLOAT,tv,linenumber);
+
+			return v_float;
+		} 
+
+<norm>: {
+			return ':';
+		}
+
+<norm>s {	
+			return 's';
+        }
+
+<norm>m {
+			return 'm';
+        }
+
+<norm>h {
+			return 'h';
+        }
+
+<norm>"{" {
+			return '{';
+        }
+
+<norm>"}" {
+			return '}';
+		}
+
+<norm>";" {
+			return ';';
+		}
+
+<norm>[ \t]+		/* eat up whitespaces */
+
+<norm>({NL})+ {		/* eat up new lines */
+			linenumber++;
+		}
+
+<norm>[a-zA-Z0-9_]+ {	/* all the rest are errors */
+			yyerror("unparsed text");
+			syserror(DP_UTOK, yytext);
+		}
+
+%%
+
+void yyerror(char* s)
+{
+  fprintf(stderr, "line %d: %s near `%s'\n", linenumber, s, yytext);
+}
+
+int yywrap(void) { return 1; }

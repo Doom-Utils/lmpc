@@ -1,0 +1,2239 @@
+<!--lmpc - the Little Movie Processing Centre
+    Copyright (C) 1994-2000 Uwe Girlich
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    Uwe Girlich
+    Dantestrasse 20
+    04159 Leipzig
+    Deutschland / Germany
+    E-mail: Uwe.Girlich@itp.uni-leipzig.de
+
+/****************************************************************************\
+|  lmpc.base  -  main documentation (SGML-Tools source)                      |
+\****************************************************************************/
+
+-->
+
+<!doctype linuxdoc system>
+<article>
+<title>@TITLE@
+<author>@MYNAME@,
+<htmlurl url="mailto:@MYEMAIL@" name="@MYEMAIL@">
+<date>v@VERSION@, @DATE@, (@COMMENT@)
+<abstract>
+This document is the user's guide of The Little Movie Processing Centre (LMPC).
+LMPC is a utility to handle DOOM, DOOM &rsqb;&lsqb;, HERETIC,
+HEXEN and STRIFE LMP files. There is a rudimentary support for Duke Nukem 3D 
+and Redneck Rampage DMO files. Quake DEM files, QuakeWorld QWD 
+files and Quake II DM2 files (client recorded, server recorded, relay files)
+are supported too. 
+The DEM file cutter tool (DEMcut), The DEM Text File Analyser (DEMA),
+The Demo Broadcasting Server (DBS) and The DM2 file concatenator (DM2cat) are
+part of this package as well.
+</abstract>
+<toc>
+<sect>Introduction
+<p>
+LMPC is the name of the complete package and the name of the biggest parts 
+in it: The Little Movie Processing Centre.
+
+LMPC is a collection of utilities to handle old (&lt;=1.4) and new DOOM, 
+DOOM &rsqb;&lsqb;, HERETIC, HEXEN and STRIFE LMP files. There is support for 
+Duke Nukem 3D and Redneck Rampage DMO files, Quake DEM files, 
+QuakeWorld QWD files and Quake II DM2 files (client recorded, server
+recorded, and relay files) too. For relay files, read the home page of the
+Quake II Relay project by Conor Davis
+(<htmlurl
+url="mailto:cedavis@planetquake.com"
+name="cedavis@planetquake.com">)
+<url url="http://www.planetquake.com/relay/">
+
+You can download the package from my 
+<url url="@HOMEURL@" name="@HOMENAME@">.
+<p>
+It is based upon the information in the 
+<url url="@HOMEURL@/lmp" name="Unofficial LMP format description">, the 
+<url url="@HOMEURL@/dmo" name="Unofficial DMO format description">, the
+<url url="@HOMEURL@/dem" name="Unofficial DEM format description">, the
+<url url="@HOMEURL@/qwd" name="Unofficial QWD format description"> and the
+<url url="@HOMEURL@/dm2" name="Unofficial DM2 format description">.
+<p>
+Read the apropriate document to find out the exact version numbers supported
+by LMPC. I write the format description and the program at the same time; so
+if it is described in the specs document, it is in general supported by the
+LMPC program.
+
+<sect>LMPC, The Little Movie Processing Centre
+<p>
+
+<sect1>Introduction
+<p>
+
+With LMPC you can get information about a LMP, DMO, DEM, QWD or DM2 file, 
+change the version 
+and viewing player's number, add some wait tics at the end, remove the 
+pause tics, clear the ``Save Game'' tics in LMP files
+and (this is the main part) you can compile and 
+decompile a LMP, DMO, DEM, QWD or DM2 from and to a LS file. LS stands for 
+``<em>L</em>MP <em>S</em>ource''.
+To reduce the amount of new abbreviations I call the ``DMO Source'' LS too.
+The language is similar and will be treated in the same way.
+The real LS language is documented at full
+length in the section <ref id="LMPsource" name="LS format">.
+The ``DEM Source'' (see section <ref id="DEMsource" name="DEM source format">) 
+and all the more the ``QWD Source'' (see section <ref id="QWDsource"
+name="QWD source format">) is totally different but I call it LS anyway.
+The same holds for Quake II DM2 (see section <ref id="DM2source"
+name="DM2 source format">) files.
+
+<sect1>Command line parameters
+<p>
+LMPC is a command line oriented program. It uses the 
+<tt>getopt&lowbar;long()</tt> function for the command line parsing. 
+<p>
+The LMP file convert options 
+(<tt>--change-version</tt>, <tt>--change-player</tt>, 
+<tt>--add-WT</tt>, <tt>--remove-pause</tt> and <tt>--clear-save</tt>) can be 
+used together.
+
+<sect2>Syntax description
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc</tt>
+<tag>Description:</tag>
+If you start LMPC without any command line parameters you 
+receive the following syntax message:
+<tscreen><verb>
+Little Movie Processing Centre
+LMPC (c) U. Girlich, 1994-2000, Release @VERSION@ @DATE@ (@COMMENT@)
+lmpc &lsqb;option ...&rsqb; filename &lsqb;filename ...&rsqb;
+-h, --help                   display this help and exit.
+-V, --version                output version information and exit.
+-i, --info                   prints out information about the LMP-files.
+-s, --to-txt                 binary/text to text conversion.
+-l, --to-bin                 binary/text, ... to binary conversion.
+-v, --change-version VERSION changes the version of a LMP-file to VERSION
+                             (0 means old DOOM).
+-p, --change-player PLAYER   changes the recording player of a LMP-file to
+                             PLAYER (0..3).
+-w, --add-WT SECONDS         adds SECONDS (int) WT game tics to the LMP file
+-r, --remove-pause           removes the game tics between PS and PE.
+-c, --clear-save             clears SG tics.
+-f, --fix-multi              fixes multi-level DEM and DM2 files.
+-t, --tic FROM(,|:)TO        converts only a part of the LMP-file
+                             (in connection with -s only).
+-g, --game GAME              forces game (GAME=DOOM,DOOM2,HERETIC,HEXEN,
+                             STRIFE,DUKE,REDNECK,QUAKE,QUAKEWORLD,QUAKE2)
+                             short: D2HXSNRQWq (only with -(i|s|v|p|w|r|c)).
+-m, --mark-step STEP         marks every STEPth tic in the LS file (-s only)
+                             STEP=0 doesn't mark any game tic; default: STEP=1.
+</verb></tscreen>
+</descrip>
+
+<sect2>Information about a LMP, DMO, DEM, QWD or DM2 file
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc &lsqb;--info|-i&rsqb; infile &lsqb;infile ...&rsqb;</tt>
+<tag>Input File:</tag>
+<tt>infile</tt>s
+<tag>Description:</tag>
+LMPC reads each <tt>infile</tt> and prints out some information
+like game, version number, episode, map, skill, 
+number of players, deathmatch/altdeath, nomonsters etc.
+Please note: in the old DOOM format there is no version 
+information, so if you check e.g. a 1.2 LMP file you receive 
+only the vague information v&lt;1.4 instead of v1.2.
+LMPC doesn't report any version for HERETIC and HEXEN LMP files.
+<p>
+This option works for DMO files too. They will be detected automatically
+but you can use the <tt>--game DUKE</tt> option as well.
+<p>
+This option works for DEM, QWD and DM2 files too. They will be detected 
+automatically
+but you can use the <tt>--game QUAKE</tt>, <tt>--game QUAKEWORLD</tt>
+and <tt>--game QUAKE2</tt> 
+option as well. The information
+on DEM, QWD and DM2 files nearly zero beside the information that it is 
+actually a DEM, QWD or DM2 file and the number of frames in binary DEM, 
+QWD or DM2 files.
+<p>
+To get more information of a DEM file convert it into a text file and use 
+DEMA, The DEM Text File Analyser.
+</descrip>
+
+<sect2>LMP/DMO/DEM/QWD/DM2 text converter (decompiler)
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--to-txt|-s) &lsqb;(--tic|-t) FROM(,|:)TO&rsqb; &lsqb;(--mark-step|-m) STEP&rsqb; infile txtfile</tt>
+<tag>Input File:</tag>
+<tt>infile</tt>
+<tag>Output File:</tag>
+<tt>txtfile</tt>
+<tag>Description:</tag>
+LMPC reads the file <tt>infile</tt>, converts it to the corresponding
+text format and stores the result in the text file <tt>txtfile</tt>.
+<tt>infile</tt> may be a LMP binary, DMO binary, DEM binary, DEM text,
+QWD binary, QWD text, DM2 binary or DM2 text file. Most of the additional
+options do work with binary LMP files only.
+<p>
+If the <tt>--tic</tt> option is used, only the part between gametic
+<tt>FROM</tt> and <tt>TO</tt> (inclusive) will be stored in the LS file.
+A missing <tt>FROM</tt> means the start of the LMP file and
+a missing <tt>TO</tt> means the end of the LMP file.
+<tt>FROM</tt> and <tt>TO</tt> are separated by a comma (<tt>,</tt>)
+or a colon (<tt>:</tt>). The MS-DOS version may have difficulties with comma
+as a separator because <tt>COMMAND.COM</tt> (<tt>4dos</tt> as well)
+splits a command line at spaces and commas. The <tt>TO</tt> part will 
+become a different argument and might be interpreted as a file name. 
+<p>
+LMPC appends at the end of the LS file some useful additional
+information. For each player there is a statistics about his
+favourite movement codes and the portion of <tt>WT</tt>. Since you can
+achieve with keyboard/joystick only a few special movement codes,
+is is very easy to detect, if the player used a keyboard or a 
+mouse. Some newbies don't use strafe, so LMPC shows also this 
+handicap. The statistic takes in account always the full LMP file.
+<p>
+From the favourite movement codes you can easily deduce the 
+number behind a prospective <tt>-turbo</tt> parameter.
+<p>
+If the <tt>--mark-step</tt> option is used LMPC will mark every 
+<tt>STEP</tt>th
+game tic with the tic-number and the current time. The default <tt>STEP</tt>
+value is 1. If <tt>STEP</tt>=0 no marks are printed at all.
+<p>
+Any <tt>--mark-step</tt> option in conjunction with a binary DEM, QWD and
+DM2 files is a
+special debug-option. It includes in the text file the frame number and the
+starting address of all messages. 
+This option may be removed or changed in future releases.
+<p>
+The <tt>--fix-multi</tt> option can be used together with <tt>--to-txt</tt>
+to repair the broken multi-level DEM and DM2 files.
+</descrip>
+
+<sect2>LMP/DEM/QWD/DM2 binary converter (compiler)
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--to-bin|-l) infile &lsqb;infile ...&rsqb; binfile</tt>
+<tag>Input File:</tag>
+<tt>infile</tt>s
+<tag>Output File:</tag>
+<tt>binfile</tt>
+<tag>Description:</tag>
+LMPC reads the first file, determines the game type and compiles a
+binary file out of all the files on the command line. The binary (destination) 
+file is always the last argument. 
+<p>
+This option works with LMP text files, DEM text, DEM binary, QWD text, 
+QWD binary, DM2 text and DM2 binary files as
+input files only. LMPC can handle more than 1 input file with LMP text files
+only.
+<p>
+For combination of DEM files use DEMcut.
+<p>
+The <tt>--fix-multi</tt> option can be used together with <tt>--to-bin</tt>
+to repair the broken multi-level DEM and DM2 files.
+</descrip>
+
+<sect2>LMP file version change
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--change-version|-v) VERSION lmpfile1 &lsqb;lmpfile2&rsqb;</tt>
+<tag>Input File:</tag>
+<tt>lmpfile1</tt>
+<tag>Output File:</tag>
+<tt>lmpfile1</tt> or <tt>&lsqb;lmpfile2&rsqb;</tt>
+<tag>Description:</tag>
+LMPC reads the binary LMP file <tt>lmpfile1</tt>, changes the version number
+byte in <tt>lmpfile1</tt> to the appropriate value or stores the result
+in <tt>lmpfile2</tt>.
+<p>
+The VERSION can be the version byte itself (0 for the old LMP files)
+or anything like 1.4beta, 1.9 or whatever.
+<p>
+There is no guarantee for a special LMP file to work with the new version!!
+</descrip>
+
+<sect2>LMP file player's view change
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--change-player|-p) PLAYER lmpfile1 &lsqb;lmpfile2&rsqb;</tt>
+<tag>Input File:</tag>
+<tt>lmpfile1</tt>
+<tag>Output File:</tag>
+<tt>lmpfile1</tt> or <tt>&lsqb;lmpfile2&rsqb;</tt>
+<tag>Description:</tag>
+LMPC reads the LMP file <tt>lmpfile1</tt>, changes the number of the 
+player (0..3: new DOOM, DOOM &rsqb;&lsqb;; 0..7: STRIFE) 
+with the main view (status bar, sound) in <tt>lmpfile1</tt>
+or stores the result in <tt>lmpfile2</tt>.
+<p>
+To change only the main player byte works only with new LMP files, since old
+ones are always recorded from the view of the first player (no. 0) and there
+is no information about this in the header.
+</descrip>             
+
+<sect2>LMP file ``Wait'' (<tt>WT</tt>) tics addition
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--add-WT|-w) SECONDS lmpfile1 &lsqb;lmpfile2&rsqb;</tt>
+<tag>Input File:</tag>
+<tt>lmpfile1</tt>
+<tag>Output File:</tag>
+<tt>lmpfile1</tt> or <tt>&lsqb;lmpfile2&rsqb;</tt>
+<tag>Description:</tag>
+LMPC reads the <tt>lmpfile1</tt> and adds at the end<p>
+<quote><tt>SECONDS</tt> * 35 * player number</quote><p>
+empty (<tt>WT</tt>) game tics. 
+This results in a <tt>SECONDS</tt> seconds longer LMP file.<p>
+With <tt>lmpfile2</tt> the result
+will be written in <tt>lmpfile2</tt>. Without this parameter, 
+<tt>lmpfile1</tt> will be changed.
+<p>
+This option is very useful for contest LMP files with a long visible summary
+screen.
+</descrip>
+
+<sect2>LMP file clean-up: ``Pause'' (<tt>PS</tt>, <tt>PE</tt>) tics
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--remove-pause|-r) lmpfile1 &lsqb;lmpfile2&rsqb;</tt>
+<tag>Input File:</tag>
+<tt>lmpfile1</tt>
+<tag>Output File:</tag>
+<tt>&lsqb;lmpfile2&rsqb;</tt>
+<tag>Description:</tag>
+LMPC reads the <tt>lmpfile1</tt> and copies all game tics to 
+<tt>lmpfile2</tt>. During the copy process LMPC scans the contents 
+for Pause Start game tics (<tt>PS</tt>) and Pause End game tics
+(<tt>PE</tt>).
+<p>
+The <tt>PS</tt> game tic will be copied to <tt>lmpfile2</tt> but
+with an empty ``use byte''; the game tics between <tt>PS</tt> and 
+<tt>PE</tt> (inclusive <tt>PE</tt>) wont be copied.
+<p>
+Without the second filename LMPC will write to a temporary file and replaces
+at the end <tt>lmpfile1</tt>.
+<p>
+The game tic numbers of <tt>PS</tt> and <tt>PE</tt> are
+printed during the conversion. 
+<p>
+You may have difficulties with the play back of such a patched LMP file. 
+This is the case if you patch a LMP file of a level with a revenant 
+(skeleton). The revenant uses a random number generator to choose between a 
+self controlled rocket and a normal rocket. The input of this generator are the
+last two bits of the game tic number. This means you have to make sure that
+you cut a number of game tics divisible by 4. In general this is impossible
+so do not use pause in levels with a revenant. An arch vile makes similar
+difficulties but I don't even know how to prevent it.
+</descrip>
+
+<sect2>LMP file clean-up: ``Save Game'' (<tt>SG</tt>) tics
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--clear-save|-c) lmpfile1 &lsqb;lmpfile2&rsqb;</tt>
+<tag>Input File:</tag>
+<tt>lmpfile1</tt>
+<tag>Output File:</tag>
+<tt>&lsqb;lmpfile2&rsqb;</tt>
+<tag>Description:</tag>
+LMPC reads the <tt>lmpfile1</tt> and copies all game tics to 
+<tt>lmpfile2</tt>. During the copy process LMPC scans the contents 
+for Save Game game tics (<tt>SG</tt>). Every <tt>SG</tt> command will be
+cleared.
+With <tt>lmpfile2</tt> the result
+will be written in <tt>lmpfile2</tt>. Without this parameter, 
+<tt>lmpfile1</tt> will be changed.
+</descrip>
+
+<sect2>DEM/DM2 file repair: multi-level files
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>lmpc (--fix-multi|-f) demofile</tt>
+<tag>Input File:</tag>
+<tt>demofile</tt>
+<tag>Output File:</tag>
+<tt>demofile</tt>
+<tag>Description:</tag>
+Quake and Quake II have problems with the playback of multi-level recordings.
+They usually stopp at the first level change.
+<p>
+Read more about the background in the <url name="recording FAQ"
+url="@HOMEURL@/faq/faq-2.html#ss2.1">.
+<p>
+If the <tt>--fix-multi</tt> parameter comes without any conversion option on 
+the command-line, LMPC repairs the demo file in question "in-place". This
+means LMPC overwrites the bad commands with <tt>nop</tt> or <tt>print</tt>.
+
+The <tt>--fix-multi</tt> option can be used together with <tt>--to-bin</tt>
+and <tt>--to-txt</tt>. LMPC removes the offending commands in this case.
+</descrip>
+
+<sect2>Game type determination
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tscreen><verb>lmpc (--info|
+      --change-version|
+      --change-player|
+      --to-txt|
+      --add-WT|
+      --remove-pause) (--game|-g) GAME binfile &lsqb;filename ...&rsqb;</verb></tscreen>
+<tag>Input File:</tag>
+<tt>binfile</tt>
+<tag>Output File:</tag>
+action dependent
+<tag>Description:</tag>
+LMPC determines the game type of a LMP (binary), DMO (binary), DEM 
+(text and binary), QWD (text and binary) or 
+DM2 (text and binary) file very good. But it can't good
+distinguish between HERETIC/HEXEN and old DOOM LMP files. Moreover it
+can't distinguish at all between DOOM &rsqb;&lsqb; Map 1-9 and new DOOM 
+Episode 1 
+LMP files. The latter case is not very important but the first is more
+severe. To force LMPC to use a particular game type use <tt>--game</tt>.
+<tt>GAME</tt> can be <tt>DOOM</tt>, <tt>DOOM2</tt>,
+<tt>HERETIC</tt>, <tt>HEXEN</tt>, <tt>STRIFE</tt>, <tt>DUKE</tt>, 
+<tt>REDNECK</tt>, <tt>QUAKE</tt>, <tt>QUAKEWORLD</tt> or <tt>QUAKE2</tt>
+or the short form <tt>D</tt>, <tt>2</tt>, <tt>H</tt>, <tt>X</tt>, <tt>S</tt>,
+<tt>N</tt>, <tt>R</tt>, <tt>Q</tt>, <tt>W</tt> or <tt>q</tt>.
+</descrip>
+
+<sect1>Bugs and limitations
+<p>
+To distinguish between old DOOM, HERETIC and HEXEN LMP files I use a simple
+turn-byte-average algorithm. This fails, if the LMP file is too short or you 
+turn
+always in the same direction and never go forward. Due to the header
+change in HEXEN 1.1, it is nearly impossible to distinguish fast between
+HERETIC and HEXEN 1.1 LMP files. LMPC looks then at the file date and treats 
+files
+with an creation year &gt;=1996 as HEXEN and all others as HERETIC files. This
+is totally stupid but what else can I do?
+<p>
+LMPC supports client side recorded DM2 files, DM2 files recorded by the
+console command <it>serverrecord</it> (working from Quake II version 3.15)
+and the RLA file used by the Quake II Relay project. 
+One single DM2 file can even contain parts from all these sides.
+Quake II may only playback client side recordings.
+<p>
+If you produced a good recording file (at least some minutes and with
+some action) and LMPC can not detect the game type, please send it to me.
+Up to a corrected version make sure to use the <tt>--game</tt> option.
+Some hints to solve the problem are welcome as well.
+<p>
+The <tt>*number</tt> repeat code in LS files really repeats this line
+<tt>number</tt> times and does not care about multi player-game tics.
+<p>
+The MS-DOS binary of LMPC converts all file names to lower case to simplify
+the name
+handling. The <tt>tolower</tt> C-function doesn't converts any kind of
+special characters like &ouml; or &egrave;. This can cause some severe
+data lost.
+<p>
+I use a redundancy in DEM files to detect Quake
+cheaters. My simple check will
+fail if the player gets hit and he gets a medikit at the very same time.
+This can happen, if a player is standing over a medikit, when the hit
+comes.
+<p>
+Some versions of Quake use a slightly different DEM format. LMPC/DEMcut
+can read this ``new'' format but they write the old 1.06 format. 
+SQuake 1.07 for Linux behaves similar: it writes the old format but can play 
+back the old and the new format.
+<p>
+Keygrip 2 writes DM2 files with non-conform bit mask values in 
+<bf>sound</bf>, <bf>spawnbaseline</bf> and <bf>packetentities</bf>
+messages. LMPC tries its best to decompile even such bad files too but
+it may well be, that some other messages with bit masks have the same
+problem.
+
+<sect>DEMA, The DEM Text File Analyser<label id="DEMA">
+<p>
+To analyse a DEM file convert it into a text file and use DEMA. DEMA is a 
+very simple Perl script, which may give you the time per level, the level name
+and the average frame time (client update time).
+<p>
+This Perl script is total incomplete but it may be helpful yet. There are
+no command line switches. You have to edit the script to change the summary.
+<p>
+I wrote DEMA in Perl, which is very good at pattern matching and extraction.
+I will <em>never</em> write a C version, so write one yourself or install Perl.
+<p>
+The main aim of DEMA is to show a sample framework for any kind of
+DEM text analysing.
+
+<sect>DEMcut, The DEM file cutter tool<label id="DEMcut">
+<p>
+<sect1>Introduction
+<p>
+DEMcut is the DEM file cutter tool. I don't know anything about movie cutting
+whatsoever but DEMcut should help you a lot cutting parts out of a DEM file,
+putting different DEM files together or using some special effects like 
+slow-motion or backward moving of particular scenes. 
+<p>
+DEMcut does all this and much more in a very easy way: 
+It gets the names of all DEM files to be processed from the command
+line and reads from ``Standard In'' commands to manipulate them.
+During the manipulation DEMcut writes one or more DEM files. 
+<p>
+A good knowledge of DEM files is required to use DEMcut. DEMcut doesn't do
+any checks to prevent you from creating non-working files.
+
+<sect1>Batch usage
+<p>
+The easiest way to use DEMcut is with a cutting list batch file. This
+file should contain all commands to be processed and can even have some 
+comments why you did something like you did it. Use any text editor for this
+and start DEMcut with an input redirection.
+<tscreen><verb>demcut demfile1.dem demfile2.dem < commands.txt</verb></tscreen>
+DEMcut starts, reads in all DEM files from the command line and reads the 
+commands from the command file. All messages (every command produces a 
+message after completion) from DEMcut go to the screen or may be redirected
+to a logging file as well.
+<tscreen><verb>demcut demfile1.dem demfile2.dem < commands.txt > output.log</verb></tscreen>
+
+<sect1>Interactive usage
+<p>
+One of the best feature of DEMcut is the possibility to do an interactive
+analysis of DEM files. The interactive mode is not compiled in on systems 
+without support for named pipes. It runs with Unix and Linux but not
+on MS-DOS, Win32 etc.
+<p>
+I will describe now the Linux use.
+First you have to create a named pipe in the directory where your Quake copy
+reads its DEM files from.
+<tscreen><verb>mkfifo fifo.dem</verb></tscreen>
+Now start Quake (make sure to use <tt>xquake</tt> and and not
+<tt>xf86quake</tt>) in a window 
+as usual and playdemo this named pipe.
+<tscreen><verb>playdemo fifo</verb></tscreen>
+Quake tries now to read a demo out of <tt>fifo.dem</tt> but there is nothing
+to read in: it stops.
+<p>
+Now comes the appearance of DEMcut. Open a new window and start DEMcut with the
+DEM file of your interest.
+<tscreen><verb>demcut mydem.dem</verb></tscreen>
+DEMcut reads in <tt>mydem.dem</tt>, does some preprocessing and waits for 
+input. The first thing to do is to direct all output to the named pipe.
+<tscreen><verb>o fifo.dem</verb></tscreen>
+Now create the start of a normal DEM file with CD track and level 
+initialisation.
+<tscreen><verb>c -1\n
+r 0 2</verb></tscreen>
+It's unbelievable but Quake starts now the level and waits for further
+actions. Now play around with different ranges, speed tests or backward
+movements. Don't forget to put the disconnect frame at the end. Quake will
+usually play immediately what you intend but the Quake client time stands still
+after playing, so all the active sound patches will be repeated over and over
+and the Quake doesn't redraw its window.
+<p>
+This is the point where the ``interactive mode'' comes in:
+DEMcut changes its behaviour with the command
+<tscreen><verb>i 1</verb></tscreen>
+This repeats the last frame sent to Quake but with an ongoing time. 
+The interactive mode allows you to type in new commands during a range
+command.
+<p>
+Now you can fast forward wind and rewind to find out all the frame numbers of
+interest. In another window you can now edit your cutting list batch file 
+and run this file for cutting the final product.
+
+<sect1>Commands
+<p>
+There are not too many commands but they are very powerful. 
+The command language is line oriented: one line means one command. Comments
+start with `<tt>&num;</tt>', empty lines or lines with wrong commands will be 
+ignored as well. DEMcut prints a short response after finishing a command
+to <tt>stdout</tt>.
+<p>
+
+<sect2>Help
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>h</tt>
+<tag>Description:</tag>
+DEMcut prints a <em>very</em> short online help. If `<tt>i</tt>'
+(interactive mode) isn't listed, your operating system doesn't support named
+pipes and the interactive mode is left out.
+</descrip>
+
+<sect2>Output file
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>o filename</tt>
+<tag>Description:</tag>
+Writes further output to this file. The old output file (if there was one)
+will be closed. If the output file can't be written (permission denied),
+DEMcut bombs back to the OS shell without any warning. I may do a check in
+the future.
+<tag>Query syntax:</tag>
+<tt>o</tt>
+<tag>Description:</tag>
+Prints the current output file name.
+<tag>Default value:</tag>
+<tt>demcut.dem</tt>
+</descrip>
+
+<sect2>DEM file
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>d filename</tt>
+<tag>Description</tag>
+<p>
+Selects this DEM file as source.
+<tag>Query syntax:</tag>
+<tt>d</tt>
+<tag>Description:</tag>
+Prints the current input DEM file name.
+<tag>Value range:</tag>
+Any DEM file name. DEMcut generates an error, if the file is not a good DEM 
+file.
+<tag>Default value:</tag>
+First DEM file from the command line. If there was no valid DEM file on the
+command line the d query command generates an error.
+</descrip>
+
+<sect2>Speed
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>s speed</tt>
+<tag>Description:</tag>
+<p>
+Speeds up all further output by this factor. <tt>speed</tt>&gt;1 increases
+the play-back speed, <tt>speed</tt>&lt;1 slows the play-back down. 
+<tag>Value range:</tag>
+<tt>speed</tt> may be any positive float value.
+<tag>Query syntax:</tag>
+<tt>s</tt>
+<tag>Description:</tag>
+Prints the current speed.
+<tag>Default value:</tag>
+1.0
+</descrip>
+
+<sect2>Time
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>t time</tt>
+<tag>Description:</tag>
+Sets the current time. 
+<tag>Value range:</tag>
+<tt>time</tt> may be any positive float value.
+<tag>Query syntax:</tag>
+<tt>t</tt>
+<tag>Description:</tag>
+Prints the current time.
+<tag>Default value:</tag>
+0.0
+</descrip>
+
+<sect2>Loop
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>l loop-count</tt>
+<tag>Description:</tag>
+Sets the loop count. Every further frame will be written <tt>loop-count</tt> 
+times to the output. The time goes forward as usual. 
+<tag>Value range:</tag>
+<tt>loop-count</tt> may be any positive integer value.
+<tag>Query syntax:</tag>
+<tt>l</tt>
+<tag>Description:</tag>
+Prints the current loop count.
+<tag>Default value:</tag>
+1
+</descrip>
+
+<sect2>CD track
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>c track</tt>
+<tag>Description:</tag>
+Write the CD track string to the current output. If the CD track
+string doesn't end with whitespace  (`&bsol;t', `&bsol;r', `&bsol;n', 
+`&bsol;f'), an `&bsol;n' will be silently appended. Don't forget this
+command at the beginning of every DEM file (like it happened with
+finesc5.dem of the Eschaton movie).
+<tag>Query syntax</tag>
+<tt>c</tt>
+<tag>Description:</tag>
+Prints the current CD track string.
+<tag>Default value:</tag>
+-1&bsol;n
+</descrip>
+
+<sect2>Frame
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>f frame-number</tt>
+<tag>Description:</tag>
+Writes the selected frame to the output. This frame gets the current time.
+The time will be increased afterwards by the frame duration divided by the 
+current speed. The whole process will be repeated as much as the current loop
+count states. 
+<p>
+The frame command stops in interactive mode a running range command.
+<tag>Value range:</tag>
+<tt>frame-number</tt> can be any integer number between 0
+and the maximum frame number in the currently selected DEM input file.
+<tag>Query syntax:</tag>
+<tt>f</tt>
+<tag>Description:</tag>
+Prints the current frame number.
+<tag>Default value:</tag>
+0
+</descrip>
+
+<sect2>Range
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>r range-start range-end</tt>
+<tag>Description:</tag>
+Writes the selected range of frames to the output. Every frame gets the current
+time. The time will be increased after each frame by the frame duration
+divided by the current speed. Every frame will be repeated as much as the
+current loop count states. In interactive mode you can use any commands
+during a running range command (i.e. speed change). The range command can be
+stopped in interactive mode by a new range command or a frame command.
+<tag>Value Range:</tag>
+<tt>range-start</tt> and <tt>range-end</tt> may
+be any integer number between 0 and the maximum frame number in the currently
+selected DEM input file. <tt>range-end</tt> may even be smaller than 
+<tt>range-start</tt>. If they are equal the result is the same as with the
+frame command.
+<tag>Query syntax:</tag>
+<tt>r</tt>
+<tag>Description:</tag>
+Prints the current range.
+<tag>Default value:</tag>
+0, last frame number of the first DEM file from the command line.
+</descrip>
+
+<sect2>Multi-player preparing<label id="DEMcutM">
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>m multi-start multi-end</tt>
+<tag>Description:</tag>
+Grabs out of the defined frame range all <bf>updatename</bf> and 
+<bf>updatecolors</bf>
+messages and writes all these messages together with the camera angles of the
+last written frame to the output. It doesn't write anything if there
+was no <bf>updatename</bf> or <bf>updatecolors</bf> message in the defined 
+frame range.
+<p>
+Everyone, who ever tried to concatenate different multi-player DEM files 
+knows the problem: The ``actors'' log in to the server in a different 
+order and so they get every time different player numbers. If one tries to
+assemble all these files together one will end up with the wrong colour scheme
+because all players stick to the colour, number and name from the very first
+recording. The only solution is to insert the right name and colour definition
+of each part in the final product. And this does the ``<tt>m</tt>'' command.
+<tag>Value Range:</tag>
+<tt>multi-start</tt> and <tt>multi-end</tt> may
+be any integer number between 0 and the maximum frame number in the currently
+selected DEM input file. <tt>multi-end</tt> may even be smaller than
+<tt>multi-start</tt>. 
+<tag>Query syntax:</tag>
+<tt>m</tt>
+<tag>Description:</tag>
+Prints the current multi-player range.
+<tag>Default value:</tag>
+0, last frame number of the first DEM file from the command line.
+</descrip>
+
+<sect2>Interactive mode
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>i inter</tt>
+<tag>Description:</tag>
+Toggles the interactive mode. The frame and the range command will be affected
+by the interactive mode. This command is not implemented on all systems.
+Use the help command (`h') to find it out.
+<p>
+DEMcut continues to write (under certain conditions) the last written frame 
+with an ongoing time.
+This feature is useful for an interactive use only (as the command name 
+suggests). DEMcut remembers the (real) time, when the last frame written to 
+Quake is
+finished. If up to this time came no new command (this is the normal case in
+interactive use) and the interactive mode is on, DEMcut writes the last frame 
+again.
+But the time stamp of this frame goes on and on. So Quake gets always new 
+frames and doesn't stop. This is extremely important for users with many
+overlapping windows (like me): Quake refreshes its window in an normal working  
+state only. It is very interesting to see what happens in the Quake window,
+if it gets always the same frame but the time goes on. This shows us the 
+different sources of movement: particles (blood traces) are totally moved by
+the client (they continue to move ), gibs are frozen in the air (they are 
+real entities) and the weapon moves up and down as usual (client driven).
+DEMcut does not allow to repeat frames which change the <tt>signon</tt> number
+(frame 0, 1 or 2 of a normal DEM file). Neither does it repeat the 
+<bf>disconnect</bf> frame. 
+<p>
+The range command may be interrupted by other commands. You need this for
+looking at the current frame number (frame command without new frame number),
+for changing the current playback-speed etc. A new frame or range output
+command stops the running range command. 
+
+<tag>Value Range:</tag>
+0 (interactive mode off) or 1 (interactive mode on).
+<tag>Query syntax</tag>
+<tt>i</tt>
+<tag>Description:</tag>
+Prints the current interactive mode.
+<tag>Default value:</tag>
+0
+</descrip>
+
+<sect2>Quit
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>q</tt>
+<tag>Description:</tag>
+Closes the output file and quits DEMcut.
+</descrip>
+
+<sect1>Example
+<p>
+A very easy task is to create a DEM file, which shows with double speed the 
+reversed actions of the well-known demo ``Ranger Gone Bad &rsqb;&lsqb;: 
+The Assault'' (created by United Rangers Films).
+<p>
+To do this start DEMcut with
+<tscreen><verb>demcut rgb2.dem</verb></tscreen>
+and type in (or much simpler use a text file and redirection)
+<p>
+<tt># this is a comment, I love comments<newline>
+# select the output<newline>
+o rgb2rev.dem<newline>
+# select the input (not really necessary)<newline>
+d rgb2.dem<newline>
+# speed things up<newline>
+s 2<newline>
+# write the CD track<newline>
+c -1&bsol;n<newline>
+# write the starting frames (level init is in 0,1 and 2)<newline>
+r 0 2<newline>
+# write all frames in reversed order (actions are in 3..7330)<newline>
+r 7330 3<newline>
+# write the disconnect frame (is the last one)<newline>
+f 7331<newline>
+# quit<newline>
+q</tt>
+<p>
+This creates the new DEM file <tt>rgb2rev.dem</tt> with the desired content.
+
+<sect1>Problems, ideas and everything
+<p>
+The current implementation of DEMcut is full of deficiencies but anyway, it 
+works.
+<itemize>
+<item>The synchronisation between DEM output and the ``real'' time in the
+interactive mode is made using polling technique. It should be 
+<tt>alarm(2)</tt> controlled.
+<item>I'm thinking about the possibility to incorporate the fake Quake
+server of DBS in DEMcut to remove the FIFO dependency.
+Interactive work could then mean: fiddling at this server and
+a Quake client of any architecture serves as a monitoring screen (after 
+connect to this server at the same or any other machine).
+<item>Please use a real OS for DEMcut. The preparing phase at the start 
+of DEMcut for <tt>rgb2.dem</tt> takes at my P133 8 seconds with Linux but 17 
+seconds with MS-DOS.
+<item>The Mingw32 (Win32 without <tt>cygwin.dll</tt>) version of DEMcut 
+(<tt>demcutm.exe</tt>) may be totally
+broken. I never tested it and have no access to a Win32 system to check
+it. If someone really wants a working version for such a OS, please find 
+the problem yourself. 
+</itemize>
+
+<sect>DBS, The Demo Broadcasting Server
+<p>
+<sect1>Introduction
+<p>
+DBS is a fake Quake server, which shows every connected client a DEM file.
+This server is absolute alpha code.
+It prints a hell of debug messages and doesn't know the full Quake
+network protocol. I think the name is crap and I will change it.
+Please send me ideas.
+<p>
+The source of DBS relies on some low-level Unix network routines. 
+I may get it to work in Win32 some day with the Cygwin API but don't expect
+a plain Win32 version.
+
+<sect1>Command line parameters
+<p>
+DBS is a command line oriented program. It uses the <tt>getopt_long</tt>
+library for the command line parsing. DBS doesn't stop for itself. Use
+<tt>Control+C</tt> to stop it.
+<p>
+
+<sect2>Syntax description
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>dbs &lsqb;--help|-h&rsqb;</tt>
+<tag>Description:</tag>
+If you start DBS without any command line parameters or the help
+parameters you receive the following syntax message:
+<tscreen><verb>Demo Broadcasting Server
+DBS (c) U. Girlich, 1997-98, Release @VERSION@ @DATE@ (@COMMENT@)
+dbs &lsqb;option ...&rsqb; demfile
+-h, --help                   display this help and exit.
+-v, --version                output version information and exit.
+-p, --port                   defines an UDP port for the server.
+-m, --max-player             defines the max. number of players.</verb></tscreen>
+</descrip>
+
+<sect2>Version
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>dbs (--version|-v)</tt>
+<tag>Description:</tag>
+DBS prints a version message and quits.
+</descrip>
+
+<sect2>Port
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>dbs (--port|-p) PORT ...</tt>
+<tag>Description:</tag>
+DBS uses by default the UDP port 26000 for the communication.
+This value can be overwritten with this option.
+</descrip>
+
+<sect2>Maximum number of players
+<p>
+<descrip>
+<tag>Syntax:</tag>
+<tt>dbs (--max-players|-m) MAX&lowbar;PLAYERS ...</tt>
+<tag>Description:</tag>
+DBS allows by default 16 players to connect and view the DEM file.
+This value can be overwritten with this option. The internal limit 
+for the number of players is 255 because the Quake Network protocol
+reserves only an <tt>unsigned char</tt> for the number of players.
+</descrip>
+
+<sect1>What DBS does
+<p>
+Nowadays are so many fake clients out there but not a single fake server.
+A proxy is not a real server because it is a client for another server.
+So I decided to analyse the network protocol, learnt something about
+UDP programming and wrote my own server. I hope to include some parts of
+this server into DEMcut, a feature which lacks some GUI DEM file editors up to
+now.
+<p>
+DBS mimics the behaviour of a normal Quake server. This means you can
+check the server with your favourite spy tool. The next step is to log in.
+This works as usual (you get your private UDP port and so on) but DBS ignores
+all client movement packets and sends to the client only the converted DEM
+packets of a prepared DEM file.
+<p>
+A small problem are the <tt>camera</tt> messages in the DEM packets.
+They come into the DEM file at the client side and not from
+the server over the network. Therefore I included in every packet an
+additional <tt>setangle</tt> message with the current camera angles.
+<p>
+This means, that you can't get the original DEM file by client (or
+proxy) recording.
+<p>
+I hope to stabilise the server much more and think of a selection menu
+at the beginning where a client may select the DEM file (``channel'') of
+interest. I call it DoD (Demo on Demand).
+
+
+
+<sect>DM2cat, The DM2 file concatenator<label id="DM2cat">
+<p>
+DM2cat is a simple Perl script to concat multiple binary DM2 files
+together to a single multi-level DM2 file.
+<p>
+It does this by simpy removing the last 4 bytes (the <bf>endblock</bf>)
+from each DM2 file.
+<p>
+The main aim of DM2cat is to show a sample framework for any kind of
+binary DM2 file manipulation.
+
+
+
+<sect>LS format<label id="LMPsource">
+<p>
+This chapter describes the ASCII text based source of a LMP or DMO file.
+I created this language for myself. This means neither id Software nor
+3D Realms use this for game development or the like. It is simply a way
+to show what is in these miraculous recording files.
+
+<sect1>Introduction
+<p>
+The LMP Source format (LS) is a (ASCII text based) readable description of
+the contents of a (binary) LMP or DMO file.
+<p>
+LMPC produces (with <tt>--to-txt</tt>) a well formatted LS file. So
+you can learn by example.
+I hope, that the text parser in LMPC (with <tt>--to-bin</tt>) can
+parse most LMP source. It can't parse DMO source files.
+<itemize>
+<item>The LS language is a line oriented language.
+<item>Empty lines are ignored.
+<item>The keywords aren't case sensitive.
+<item>The characters between <tt>#</tt> and ``new line'' will be ignored.
+<item>``new line'' can be 0x0A or 0x0D0A.
+</itemize>
+<p>
+At the very beginning of a LS file (produced by <tt>lmpc --to-txt</tt>)
+there are some comment lines with derived information:
+<descrip>
+<tag>LMP</tag>
+<tscreen><verb>
+DOOM (&rsqb;&lsqb;) LMP file:  filename of the LMP file
+Number of players:   derived from the number of used colours
+Total play time:     derived from the number of game tics
+Number of game tics: derived from the file length
+</verb></tscreen>
+<tag>DMO</tag>
+<tscreen><verb>
+Duke Nukem 3D DMO file:  filename of the DMO file
+Total play time:         derived from the number of game tics
+Number of game tics:     taken from the header, it stays better in a comment
+</verb></tscreen>
+</descrip>
+
+<sect1>Header Area
+<p>
+The Header Area starts with the keyword <tt>HeaderStart</tt> and ends with
+the keyword <tt>HeaderEnd</tt>.
+<p>
+Between <tt>HeaderStart</tt> and <tt>HeaderEnd</tt> there are lines
+with general information about the LMP or DMO file:
+<descrip>
+<tag>Game:</tag>
+game type (DOOM, DOOM &rsqb;&lsqb;, HERETIC, HEXEN, STRIFE, Duke Nukem 3D,
+Redneck Rampage)
+<tag>Version:</tag>
+version number or version byte (new DOOM/DOOM &rsqb;&lsqb;, STRIFE) 
+or 0 (old DOOM/HERETIC/HEXEN), the real version for Duke Nukem 3D and Redneck
+Rampage
+<tag>Skill:</tag>
+player skill (LMP: 1-5, DMO: 1-4)
+<tag>Episode:</tag>
+episode (DOOM/HERETIC/Duke Nukem 3D: 1-4, DOOM &rsqb;&lsqb;/HEXEN: 1,
+not in STRIFE), Redneck Rampage: 1 (I don't know it better yet, should be 1-4)
+<tag>Map:</tag>
+starting map (DOOM/HERETIC/Duke Nukem 3D: 1-9, DOOM &rsqb;&lsqb;: 1-32, 
+HEXEN 1-40, STRIFE: 32-??), Redneck Rampage: 1-11 
+</descrip>
+In multi-player LMP files comes now a table with the colours (0-3) 
+of the players (0-3) (0-7 in STRIFE and HEXEN 1.1)
+<tscreen><verb>
+Player0:      Colour of player 0
+Player1:      Colour of Player 1
+</verb></tscreen>
+etc.
+<descrip>
+<tag>Player:</tag>
+Number of players (does exist in DMO source only)
+</descrip>
+<p>
+The following lines are special for new DOOM, DOOM &rsqb;&lsqb; and STRIFE LMP
+files.
+<descrip>
+<tag>MultiRule:</tag>
+Multi-Player Playing Rule (Cooperative, DeathMatch or Altdeath)
+<tag>Respawn:</tag>
+number (This line appears only if the LMP was recorded 
+with <tt>-respawn</tt>. The number is the number of the 
+command line parameter <tt>-respawn</tt>.)
+<tag>Fast:</tag>
+number (This line appears only if the LMP was recorded 
+with <tt>-fast</tt>. The number is the number of the 
+command line parameter <tt>-fast</tt>.)
+<tag>NoMonsters:</tag>
+number (This line appears only if the LMP was recorded 
+with <tt>-nomonsters</tt>. The number is the number of the 
+command line parameter <tt>-nomonsters</tt>.)
+<tag>ViewOfPlayer:</tag>
+colour (The LMP is recorded from the view of the player 
+with this colour, (0&lt;=colour&lt;=3))
+</descrip>
+The following lines are special for new Duke Nukem 3D and Redneck Rampage DMO 
+files.
+<descrip>
+<tag>MultiRule:</tag>
+Multi-Player Playing Rule (DukeMatch (RedneckMatch) (with spawn), Coop,
+Dukematch (Redneckmatch) (without spawn))
+<tag>Respawn Monsters:</tag>
+number (This line appears only if the DMO file was recorded
+with <tt>/t1</tt>.) 
+<tag>Respawn Items:</tag>
+number (This line appears only if the DMO file was recorded
+with <tt>/t2</tt>.) 
+<tag>Respawn Inventory:</tag>
+number (This line appears only if the DMO file was recorded
+with <tt>/t3</tt>.) 
+<tag>NoMonsters:</tag>
+number (This line appears only if the DMO file was recorded
+with <tt>/m</tt>.)
+</descrip>
+The following lines are special for Redneck Rampage DMO files.
+<descrip>
+<tag>FakePlayerAI:</tag>
+number (This line appears only if the DMO was recorded 
+with <tt>/a</tt>.) 
+<tag>Name:</tag>
+"string" (The standard name is "LEONARD" but it can be changed with the 
+<tt>-name</tt> option.)
+</descrip>
+
+Sometimes <tt>lmpc --to-txt</tt> can't distinguish between new
+DOOM and DOOM &rsqb;&lsqb; LMP files:
+In the Game line appears ``DOOM or DOOM &rsqb;&lsqb;''.
+<p>
+The version byte can easily be derived from the game version.
+<table loc="htb">
+<tabular ca="rl">
+0  : <colsep>DOOM 1.1, 1.2<rowsep>
+101: <colsep>STRIFE 1.0, 1.1<rowsep>
+104: <colsep>DOOM 1.4beta<rowsep>
+105: <colsep>DOOM 1.5beta<rowsep>
+106: <colsep>DOOM 1.6beta, DOOM 1.666, DOOM &rsqb;&lsqb; 1.666<rowsep>
+107: <colsep>DOOM &rsqb;&lsqb; 1.7, DOOM &rsqb;&lsqb; 1.7a<rowsep>
+108: <colsep>DOOM 1.8, DOOM &rsqb;&lsqb; 1.8<rowsep>
+109: <colsep>(Ultimate) DOOM 1.9, DOOM &rsqb;&lsqb; 1.9<rowsep>
+110: <colsep>published source code
+</tabular>
+<caption>LMP version bytes</caption>
+</table>
+
+In HEXEN LMP files appears the player class (0: fighter, 1: cleric, 2: mage)
+too:
+<tscreen><verb>
+Class:        single player class (0-2)
+</verb></tscreen>
+or in multi-player LMP files:
+<tscreen><verb>
+Class0:       player 0 class
+Class1:       player 1 class
+</verb></tscreen>
+etc.
+
+<sect1>Data Area
+<p>
+The Data Area starts with the keyword <tt>DataStart</tt> and ends with 
+the keyword <tt>DataEnd</tt>.
+<p>
+All actions of one game tic have to be in one text line. In a multi-player
+LMP there is one line for each player per game tic. 
+<p>
+LMPC may append (with the <tt>--mark-step</tt> option) a comment with the 
+game tic and the time passed until this game tic at the line of the first 
+player.
+
+<sect2>Movements
+<p>
+A movement consists of a 2 letter word and an amount <tt>n</tt>.
+<table loc="htb">
+<tabular ca="llll">
+code <colsep>action <colsep> game <colsep> range <rowsep>
+<tt>GFn</tt> <colsep>Go Forward <tt>n</tt> <colsep>LMP <colsep>1&lt;=<tt>n</tt>&lt;=127<rowsep>
+<tt>GBn</tt> <colsep>Go Backward <tt>n</tt> <colsep>LMP <colsep>1&lt;=<tt>n</tt>&lt;=127<rowsep>
+<tt>SLn</tt> <colsep>Strafe Left <tt>n</tt> <colsep>LMP <colsep>1&lt;=<tt>n</tt>&lt;=127<rowsep>
+<tt>SRn</tt> <colsep>Strafe Right <tt>n</tt> <colsep>LMP <colsep>1&lt;=<tt>n</tt>&lt;=127<rowsep>
+<tt>GXn</tt> <colsep>Go X-direction <tt>n</tt> <colsep>DMO <colsep>-32768&lt;=<tt>n</tt>&lt;=32767<rowsep>
+<tt>GYn</tt> <colsep>Go Y-direction <tt>n</tt> <colsep>DMO <colsep>-32768&lt;=<tt>n</tt>&lt;=32767<rowsep>
+<tt>TLn</tt> <colsep>Turn Left <tt>n</tt> <colsep>LMP <colsep>1&lt;=<tt>n</tt>&lt;=127<rowsep>
+<tt>TLn</tt> <colsep>Turn Left <tt>n</tt> <colsep>DMO <colsep>1&lt;=<tt>n</tt>&lt;=32767<rowsep>
+<tt>TRn</tt> <colsep>Turn Right <tt>n</tt> <colsep>LMP <colsep>1&lt;=<tt>n</tt>&lt;=127<rowsep>
+<tt>TRn</tt> <colsep>Turn Right <tt>n</tt> <colsep>DMO <colsep>1&lt;=<tt>n</tt>&lt;=32767
+</tabular>
+<caption>Movement commands</caption>
+</table>
+
+<sect2>Use (LMP only)
+<p>
+<table loc="htb">
+<tabular ca="ll">
+<tt>UT</tt> <colsep>Use Thing  (press button, open door etc.)<rowsep>
+<tt>NWn</tt> <colsep>New Weapon (1&lt;=<tt>n</tt>&lt;=8) (change the weapon manually)<rowsep>
+<tt>FW</tt> <colsep>Fire Weapon<rowsep>
+<colsep><rowsep>
+<tt>PS</tt> <colsep>Pause Start<rowsep>
+<tt>PE</tt> <colsep>Pause End<rowsep>
+<tt>SGn</tt> <colsep>Save Game in slot n (0&lt;=n&lt;=7)
+</tabular>
+<caption>Use commands</caption>
+</table>
+
+You can not combine <tt>PS</tt>, <tt>PE</tt> and <tt>SG</tt> with
+other Use commands. But you can combine
+the other Use commands (for instance <tt>UT</tt> and <tt>FW</tt> at the
+same time).
+
+<sect2>Fly and Look (HERETIC and HEXEN only)
+<p>
+A fly and look command consists of a 2 letter word and an amount 
+(1&lt;=<tt>n</tt>&lt;=15)
+<table loc="htb"> 
+<tabular ca="ll">
+<tt>FUn</tt> <colsep>Fly Up <tt>n</tt><rowsep>
+<tt>FDn</tt> <colsep>Fly Down <tt>n</tt><rowsep>
+<tt>LUn</tt> <colsep>Look Up <tt>n</tt><rowsep>
+<tt>LDn</tt> <colsep>Look Down <tt>n</tt><rowsep>
+<colsep><rowsep>
+<tt>FC</tt> <colsep>Fly Centre (landing, drop)<rowsep>
+<tt>LC</tt> <colsep>Look Centre (look forward)
+</tabular>
+<caption>Fly and Look commands</caption>
+</table>
+
+<sect2>Use Artifact (HERETIC and HEXEN only)
+<p>
+The Use Artifact command consist of the code <tt>AT</tt> and a letter
+(<tt>a</tt>..<tt>j</tt>)
+equivalent to the <tt>gimme</tt>-cheat of HERETIC. In HEXEN such a cheat code
+does not exist but the command remains the same:
+<p>
+<descrip>
+<tag>HERETIC:</tag>
+<table loc="htb">
+<tabular ca="ll">
+<tt>ATa</tt> <colsep>ring of invincibility<rowsep>
+<tt>ATb</tt> <colsep>shadowsphere<rowsep>
+<tt>ATc</tt> <colsep>quartz flask<rowsep>
+<tt>ATd</tt> <colsep>chaos device<rowsep>
+<tt>ATe</tt> <colsep>tome of power<rowsep>
+<tt>ATf</tt> <colsep>torch<rowsep>
+<tt>ATg</tt> <colsep>time bomb of the ancients<rowsep>
+<tt>ATh</tt> <colsep>morph ovum<rowsep>
+<tt>ATi</tt> <colsep>wings of wrath<rowsep>
+<tt>ATj</tt> <colsep>mystic urn
+</tabular>
+<caption>HERETIC artifacts</caption>
+</table>
+<tag>HEXEN:</tag>
+<table loc="htb">
+<tabular ca="ll">
+<tt>ATa</tt> <colsep>icon of the defender<rowsep>
+<tt>ATb</tt> <colsep>quartz flask<rowsep>
+<tt>ATc</tt> <colsep>mystic urn<rowsep>
+<tt>ATd</tt> <colsep>clerical healing key<rowsep>
+<tt>ATe</tt> <colsep>dark servant<rowsep>
+<tt>ATf</tt> <colsep>torch<rowsep>
+<tt>ATg</tt> <colsep>porkalator<rowsep>
+<tt>ATh</tt> <colsep>wings of wrath<rowsep>
+<tt>ATi</tt> <colsep>chaos device<rowsep>
+<tt>ATj</tt> <colsep>flechette<rowsep>
+<tt>ATk</tt> <colsep>banishment device<rowsep>
+<tt>ATl</tt> <colsep>boots of speed<rowsep>
+<tt>ATm</tt> <colsep>krater of might<rowsep>
+<tt>ATn</tt> <colsep>dragonskin bracers<rowsep>
+<tt>ATo</tt> <colsep>disc of repulsion<rowsep>
+<tt>UA</tt> <colsep>use all (panic button)
+</tabular>
+<caption>HEXEN artifacts</caption>
+</table>
+</descrip>
+
+<sect2>STRIFE Artifacts
+<p>
+You can only the use STRIFE artifacts with the <tt>IN</tt> or <tt>DR</tt>
+actions. 
+<p>
+The Use Artifact command consist of the code <tt>A</tt> and an 
+artifact number. Up to now I know only 12 artifacts.
+<table loc="htbp">
+<tabular ca="lll">
+code <colsep>name<rowsep>
+<tt>0x74</tt> <colsep>toughness<rowsep>
+<tt>0x75</tt> <colsep>accuracy<rowsep>
+<tt>0x76</tt> <colsep>full health<rowsep>
+<tt>0x7B</tt> <colsep>teleportor beacon<rowsep>
+<tt>0x7C</tt> <colsep>metal armor<rowsep>
+<tt>0x7D</tt> <colsep>leather armor<rowsep>
+<tt>0xA1</tt> <colsep>med patch<rowsep>
+<tt>0xA2</tt> <colsep>medical kit<rowsep>
+<tt>0xA3</tt> <colsep>coin<rowsep>
+<tt>0xA7</tt> <colsep>shadow armor<rowsep>
+<tt>0xA8</tt> <colsep>environmental suit<rowsep>
+<tt>0xB7</tt> <colsep>offering chalice
+</tabular>
+<caption>STRIFE artifacts</caption>
+</table>
+
+<sect2>Jump (HEXEN and STRIFE only)
+<p>
+In HEXEN and STRIFE you can jump up.
+<table loc="htbp">
+<tabular ca="ll">
+<tt>JU</tt> <colsep>jump
+</tabular>
+<caption>Jump command</caption>
+</table>
+
+<sect2>STRIFE actions
+<p>
+There are some more STRIFE actions. Remember: no talks are stored in the LMP
+file.
+<table loc="htb">
+<tabular ca="ll">
+<tt>LU</tt> <colsep>Look Up<rowsep>
+<tt>LD</tt> <colsep>Look Down<rowsep>
+<tt>RU</tt> <colsep>Run <rowsep>
+<tt>IN</tt> <colsep>Use Inventory<rowsep>
+<tt>DR</tt> <colsep>Drop Inventory<rowsep>
+<tt>JU</tt> <colsep>Jump Up<rowsep>
+<tt>U6</tt> <colsep>Unknown Action Number 6<rowsep>
+<tt>HE</tt> <colsep>Use Health
+</tabular
+<caption>STRIFE actions</caption>
+</table>
+
+<sect2>Use (DMO only)
+<p>
+There are 28 actions in DMO files (and 4 bits for weapon change). 
+As far as it works I use the same codes for the same or similar thing as in
+LMP sources. To describe the actions I use the terms for key definitions
+in <tt>DUKE3D.CFG</tt>.
+<table loc="htb">
+<tabular ca="ll">
+<tt>JU</tt> <colsep>Jump<rowsep>
+<tt>CR</tt> <colsep>Crouch<rowsep>
+<tt>FW</tt> <colsep>Fire<rowsep>
+<tt>AU</tt> <colsep>Aim&lowbar;Up<rowsep>
+<tt>AD</tt> <colsep>Aim&lowbar;Down<rowsep>
+<tt>RU</tt> <colsep>Run<rowsep>
+<tt>LU</tt> <colsep>Look&lowbar;Up<rowsep>
+<tt>LD</tt> <colsep>Look&lowbar;Down<rowsep>
+<tt>VI</tt> <colsep>NightVision<rowsep>
+<tt>MK</tt> <colsep>MedKit<rowsep>
+<tt>AR</tt> <colsep>AutoRun<rowsep>
+<tt>LC</tt> <colsep>Center&lowbar;View<rowsep>
+<tt>HW</tt> <colsep>Holster&lowbar;Weapon<rowsep>
+<tt>IL</tt> <colsep>Inventory&lowbar;Left<rowsep>
+<tt>HD</tt> <colsep>Holo&lowbar;Duke<rowsep>
+<tt>JP</tt> <colsep>Jetpack<rowsep>
+<tt>IR</tt> <colsep>Inventory&lowbar;Right<rowsep>
+<tt>TA</tt> <colsep>TurnAround<rowsep>
+<tt>UT</tt> <colsep>Open<rowsep>
+<tt>IN</tt> <colsep>Inventory<rowsep>
+<tt>AC6</tt> <colsep>??<rowsep>
+<tt>AC7</tt> <colsep>??<rowsep>
+<tt>AC12</tt> <colsep>??<rowsep>
+<tt>PA</tt> <colsep>Pause<rowsep>
+<tt>AC22</tt> <colsep>??<rowsep>
+<tt>AC23</tt> <colsep>??<rowsep>
+<tt>AC26</tt> <colsep>??<rowsep>
+<tt>AC31</tt> <colsep>??<rowsep>
+<tt>NWn</tt> <colsep>New Weapon (1&lt;=<tt>n</tt>&lt;=10) (change the weapon manually)
+</tabular>
+<caption>DMO actions</caption>
+</table>
+
+<sect2>Special Codes
+<p>
+<table loc="hbt">
+<tabular ca="ll">
+<tt>WT</tt> <colsep>Wait a Tic<rowsep>
+<tt>*n</tt> <colsep>Repeats the current line <tt>n</tt> times
+</tabular>
+<caption>Special commands</caption>
+</table>
+
+<sect>DEM source format<label id="DEMsource">
+<p>
+The DEM format is very complicated. Therefore I don't include a documentation
+of the text format here. Please look in the ``Unofficial DEM format 
+description''. 
+The current version is available at <url url="@HOMEURL@/dem">.
+<p>
+You will understand my textual representation of the DEM format
+by inspecting a sample file and reading a bit about the structure in the
+mentioned document. 
+<p>
+If someone is willing to write a documentation of my DEM text format please
+inform me and your document will be included right here. For the die-hard
+hacker: the lex file <tt>udeml.l</tt> and the yacc file <tt>udemy.y</tt>
+contain the complete language grammar documentation.
+
+
+<sect>QWD source format<label id="QWDsource">
+<p>
+The QWD format is even harder to understand than the DEM format.
+Please look in the ``Unofficial QWD format description''.
+The current version is
+<url url="@HOMEURL@/qwd">.
+<p>
+You will understand my textual representation of the QWD format
+by inspecting a sample file and reading a bit about the structure in the
+mentioned document.
+<p>
+If someone is willing to write a documentation of my QWD text format please
+inform me and your document will be included right here. 
+
+
+<sect>DM2 source format<label id="DM2source">
+<p>
+The DM2 format is a nice and compact file format.
+Please look in the ``Unofficial DM2 format description''.
+The current version is
+<url url="@HOMEURL@/dm2">.
+<p>
+You will understand my textual representation of the DM2 format
+by inspecting a sample file and reading a bit about the structure in the
+mentioned document.
+<p>
+If someone is willing to write a documentation of my DM2 text format please
+inform me and your document will be included right here. 
+
+
+<sect>Some links and further information
+<p>
+For further information on LMP files look in the ``Unofficial LMP format 
+description''. The current version is 
+<url url="@HOMEURL@/lmp">.
+<p>
+For a huge collection of some great LMP files, look at the 
+COMPET-N home page
+<url url="http://www.hszk.bme.hu/~ha211/compet-n/">.
+<p>
+For further information on DMO files look in the ``Unofficial DMO format 
+description''. The current version is 
+<url url="@HOMEURL@/dmo">.
+<p>
+For a small collection of DMO files, look at the
+<url url="http://www.acs.oakland.edu/~klmatero/duke3d/demos.html">.
+<p>
+For further information on DEM files look in the ``Unofficial DEM format
+description''. The current version is
+<url url="@HOMEURL@/dem">.
+<p>
+All info you'll ever need on DEM files can be found in the published
+Quake source at
+<url url="ftp://ftp.idsoftware.com/idstuff/source/q1source.zip">
+<p>
+A simple DEM file editing guide can be found at 
+<url url="http://www.Z-Studios.com/archives/filmat11.html">.
+<p>
+For further information on QWD files look in the ``Unofficial QWD format
+description''. The current version is
+<url url="@HOMEURL@/qwd">.
+<p>
+All info you'll ever need on QWD files can be found in the published
+QuakeWorld source at
+<url url="ftp://ftp.idsoftware.com/idstuff/source/q1source.zip">
+<p>
+For further information on DM2 files look in the ``Unofficial DM2 format
+description''. The current version is
+<url url="@HOMEURL@/dm2">.
+<p>
+DM2 file editing tutorials can be found at
+<url url="http://www.Z-Studios.com/tutorials/dm2/tut_demo.html">.
+<p>
+For further information on Quake II Relay project look at
+<url url="http://www.planetquake.com/relay/">.
+<p>
+
+
+<sect>History and future of LMPC
+<p>
+LMPC started in the good old DOOM days as a very small Turbo Pascal 6.0 
+program to show me what's in these LMP files. It is now a ``fat'' C 
+application and has way too many command-line switches. 
+DEMcut is not as widely used as LMPC but it started
+the DEM editing hype. DBS (I really have to change this name) 
+gave the Keygrip authors 
+(<url url="http://www.planetquake.com/keygrip">) the starting point for their 
+internal fake Quake server.
+<p>
+<descrip>
+
+<tag>1.0 (8/30/1994) <tt>lmpc10.zip</tt> (8/31/1994 posted in 
+<tt><htmlurl url="news:alt.binaries.doom" name="alt.binaries.doom"></tt>, 
+<tt><htmlurl url="news:alt.games.doom" name="alt.games.doom"></tt>)
+</tag><itemize>
+<item>General: first public version.
+</itemize>
+
+<tag>1.01 (8/31/1994) <tt>lmpc101.arj</tt> (9/1/1994 posted in 
+<tt><htmlurl url="news:alt.binaries.doom" name="alt.binaries.doom"></tt>, 
+<tt><htmlurl url="news:alt.games.doom" name="alt.games.doom"></tt>)
+</tag><itemize>
+<item>LMP: bug fixed in <tt>WT</tt> statistics.
+<item>Docu: LS description / LMPC program reference splitted in 
+LS.DOC / LMPC.DOC.
+<item>LMP: New heuristic algorithm to discover former version changes.
+<item>Docu: History added in LMPC.DOC.
+<item>General: 
+Terry (<htmlurl url="mailto:terry@usis.com" name="terry@usis.com">) 
+wrote also a DOOM utility (I don't know it) 
+with the archive name <tt>lmpc10.zip</tt>. Therefore I changed to the ARJ 
+archive.
+</itemize>
+
+<tag>2.0 (10/11/1994) <tt>lmpc20.arj</tt> (internal beta test release)
+</tag><itemize>
+<item>LMP: the LMP compiler is ready after all!
+</itemize>
+
+<tag>2.01 (10/12/1994) <tt>lmpc201.arj</tt> (internal beta test release)
+</tag><itemize>
+<item>LMP: decompiler bug fixed (<tt>UT</tt>/<tt>FW</tt> and <tt>NW</tt>
+in the same game tic).
+<item>LMP: compiler parser improved (token length test).
+<item>LMP: <tt>NW8</tt> (8 gives you the chain saw directly) added.
+</itemize>
+
+<tag>2.1 (10/24/1994) <tt>lmpc21.arj</tt> (10/25/1994 posted in 
+<tt><htmlurl url="news:alt.binaries.doom" name="alt.binaries.doom"></tt>)
+</tag><itemize>
+<item>General: after a error free beta test phase nothing changed, new public
+version.
+</itemize>
+
+<tag>2.20 ... 2.26 (never published)</tag>
+<itemize>
+<item>General: rewritten from scratch (Turbo Pascal 6.0 -&gt; ANSI C).
+</itemize>
+
+<tag>2.27 (2/25/1995) <tt>lmpc-2.27.tar.gz</tt> (internal beta test release)
+</tag><itemize>
+<item>LMP: LS format improved (new HERETIC movements).
+<item>LMP: can handle DOOM &rsqb;&lsqb; and HERETIC LMP files.
+<item>LMP: <tt>GAME</tt>-token in the LS Header.
+<item>LMP: version change expects now the real version byte.
+<item>LMP: 1.5 times faster (2.27/2.1, checked with a &gt;300K LMP).
+<item>General: includes now an executable for MS-DOS and Linux.
+</itemize>
+
+<tag>2.3 (4/29/1995) <tt>lmpc-2.3.tar.gz</tt>/<tt>lmpc23.zip</tt>
+</tag><itemize>
+<item>General: full source code included.
+<item>LMP: version change expects a real version string or the version byte.
+<item>General: zip and tar.gz release.
+<item>General: includes now go32.exe and stub.exe too.
+</itemize>
+
+<tag>2.4 (8/7/1995) <tt>lmpc-2.4.tar.gz</tt>/<tt>lmpc24.zip</tt>
+(public release)
+</tag><itemize>
+<item>General: MS-DOS binary cross compiled with go32crs.
+<item>Docu: documentation in HTML and plain text (created with Mosaic from the
+HTML version).
+<item>LMP: Ultimate DOOM with 4th episode tested (nothing changed).
+</itemize>
+
+<tag>2.5 (8/23/1995) <tt>lmpc-2.5.tar.gz</tt>/<tt>lmpc25.zip</tt>
+(internal beta test release)
+</tag><itemize>
+<item>General: command line parsing now with <tt>getopt_long</tt> and long 
+option names are allowed too.
+<item>General: to compile lmpc.exe (MS-DOS binary) I included the 
+getopt-package 
+from the GNU C library (my copy of djgpp doesn't include getopt).
+<item>General: <tt>--info</tt> can handle many files on the command line.
+<item>LMP: <tt>--lmp-to-ls</tt> can decompile a specific part of the LMP file
+(the new <tt>--tic</tt> option).
+<item>LMP: the buggy version number string function repaired.
+<item>LMP: the new option <tt>--game</tt> to force the game type of the LMP
+file.
+</itemize>
+
+<tag>2.6 (8/26/1995) <tt>lmpc-2.6.tar.gz</tt>/<tt>lmpc26.zip</tt>
+(internal beta test release)
+</tag><itemize>
+<item>LMP: <tt>--ls-to-lmp</tt> converts now several LS files to a LMP file.
+<item>LMP: new option <tt>--add-WT</tt> to add <tt>WT</tt> at the end of a
+LMP file. 
+</itemize>
+
+<tag>2.6.1 (8/28/1995) <tt>lmpc-2.6.1.tar.gz</tt>/<tt>lmpc261.zip</tt>
+(internal beta release)
+</tag><itemize>
+<item>General: 3 parts of the version number.
+<item>LMP: <tt>--gametic FROM(,|:)TO</tt>: colon is allowed as a separator too.
+<item>LMP: <tt>--ls-to-lmp</tt> keeps track of <tt>PS</tt> and <tt>PE</tt>.
+<item>LMP: <tt>--remove-pause</tt> to remove the Pause game tics.
+</itemize>
+
+<tag>2.7.0 (9/3/1995) <tt>lmpc-2.7.0.tar.gz</tt> (internal alpha release)
+</tag><itemize>
+<item>LMP: <tt>--gametic</tt> changed to <tt>--tic</tt>
+<item>LMP: total new code to convert LMP files (all in one).
+<item>LMP: do multiple LMP file changes at the same time.
+<item>LMP: convert LMP files with the help of a temporary file (if necessary).
+</itemize>
+
+<tag>2.7.1 (9/5/1995) <tt>lmpc-2.7.1.tar.gz</tt>/<tt>lmpc271.zip</tt>
+(internal beta release)
+</tag><itemize>
+<item>LMP: small bug fixes in the new code.
+<item>LMP: MS-DOS binary converts now all filenames to lower case.
+</itemize>
+
+<tag>2.7.2 (9/6/1995) <tt>lmpc-2.7.2.tar.gz</tt>/<tt>lmpc272.zip</tt>
+(internal beta release)
+</tag><itemize>
+<item>LMP: small bug in the MS-DOS binary corrected.
+</itemize>
+
+<tag>2.8.0 (10/5/1995) <tt>lmpc-2.8.0.tar.gz</tt>/<tt>lmpc280.zip</tt>
+(public release)
+</tag><itemize>
+<item>General: Nothing important changed after one month of intensive beta 
+testing. The code is stable. 
+</itemize>
+
+<tag>2.9.1 (10/9/1995) <tt>lmpc-2.9.1.tar.gz</tt>/<tt>lmpc291.zip</tt>
+(internal beta release)
+</tag><itemize>
+<item>General: from now on I use a version number scheme similar to Linux: 
+second number odd means test.
+<item>LMP: HEXEN support (rudimentary).
+</itemize>
+
+<tag>2.9.2 (10/9/1995) <tt>lmpc-2.9.2.tar.gz</tt>/<tt>lmpc292.zip</tt>
+(internal beta release)
+</tag><itemize>
+<item>LMP: correct names of all HEXEN artifacts.
+</itemize>
+
+<tag>2.9.3 (11/19/1995) <tt>lmpc-2.9.3.tar.gz</tt>/<tt>lmpc293.zip</tt>
+(internal beta release)</tag>
+<itemize>
+<item>LMP: new option <tt>--clear-save</tt> to clear the <tt>SG</tt> tics.
+<item>Docu: documentation in Linux-SGML.
+<item>LMP: small multi-player bug corrected, thanks to Rob McCartney
+(<htmlurl url="mailto:argon@netcom.com" name="argon@netcom.com">) 
+for his bug report.
+</itemize>
+
+<tag>2.9.4 (12/6/1995) <tt>lmpc-2.9.4.tar.gz</tt>/<tt>lmpc294.zip</tt>
+(internal beta release)</tag>
+<itemize>
+<item>new option <tt>--mark-step</tt> to mark only every <tt>STEP</tt>th
+game tic
+<item>General: MS-DOS version uses <tt>CR/LF</tt> instead of <tt>LF</tt> 
+for LS files.
+</itemize>
+
+<tag>2.9.5 (2/10/1996) <tt>lmpc-2.9.5.tar.gz</tt>/<tt>lmpc295.zip</tt>
+(internal alpha release)</tag>
+<itemize>
+<item>DMO: rudimentary support for Duke Nukem 3D DMO files (alpha code!). 
+</itemize>
+
+<tag>2.9.6 (2/12/1996) <tt>lmpc-2.9.6.tar.gz</tt>/<tt>lmpc296.zip</tt>
+(internal alpha release)</tag>
+<itemize>
+<item>DMO: reliable version of <tt>lzw.c</tt>/<tt>unlzw.c</tt> included.
+<item>DMO: all DMO header bytes decoded.
+<item>General: new WWW directory structure.
+</itemize>
+
+<tag>2.9.7 (2/13/1996) <tt>lmpc-2.9.7.tar.gz</tt>/<tt>lmpc297.zip</tt>
+(internal beta release)</tag>
+<itemize>
+<item>DMO: version 1.1 of <tt>lzw.c</tt>/<tt>unlzw.c</tt> included.
+<item>DMO: DMO support in <tt>-s</tt> and <tt>-i</tt>.
+<item>Docu: documentation structure changed.
+</itemize>
+
+<tag>2.9.8 (2/19/1996) <tt>lmpc-2.9.8.tar.gz</tt>/<tt>lmpc298.zip</tt>
+(internal beta release)</tag>
+<itemize>
+<item>DMO: Chunk header removed from DS format.
+<item>DMO: multi-player size/tics/time corrected.
+<item>DMO: Pause is AC21.
+</itemize>
+
+<tag>2.9.9 (3/6/1996) <tt>lmpc-2.9.9.tar.gz</tt>/<tt>lmpc299.zip</tt>
+(internal beta release)</tag>
+<itemize>
+<item>LMP: STRIFE support included.
+</itemize>
+
+<tag>2.9.10 (4/7/1996) <tt>lmpc-2.9.10.tar.gz</tt>/<tt>lmpc2910.zip</tt>
+(internal beta release)</tag>
+<itemize>
+<item>LMP: HEXEN 1.1 (8 player) support included.
+<item>LMP: considerable changes in the <tt>-g</tt> code.
+</itemize>
+
+<tag>2.9.11 (4/14/1996) <tt>lmpc-2.9.11.tar.gz</tt>/<tt>lmpc2911.zip</tt>
+(internal bug fix release)</tag>
+<itemize>
+<item>LMP: version string scan routine improved (buggy since 2.9.9).
+<item>LMP: game type determine routine corrected (buggy since 2.9.10).
+<item>LMP: HEXEN version change (1.0 &lt;-&gt; 1.1) now possible.
+</itemize>
+
+<tag>2.9.12 (4/21/1996) <tt>lmpc-2.9.12.tar.gz</tt>/<tt>lmpc2912.zip</tt>
+(internal beta release)</tag>
+<itemize>
+<item>DMO: macro-block error fixed.
+<item>LMP: STRIFE player colour names included.
+</itemize>
+
+<tag>2.9.13 (7/1/1996), never released
+(internal incomplete alpha release)</tag>
+<itemize>
+<item>DEM: coding started for Quake DEM files, nothing completed.
+</itemize>
+
+<tag>2.9.14 (7/2/1996), never released
+(internal incomplete alpha release)</tag>
+<itemize>
+<item>Quake DEM files: coding continued, something completed.
+</itemize>
+
+<tag>2.9.15 (7/3/1996), never released
+(internal incomplete alpha release)</tag>
+<itemize>
+<item>DEM: coding continued, structure mostly completed.
+<item>General: new recursive Makefiles, MS-DOS compiling not supported anymore.
+<item>General: new Linuxdoc-SGML 1.5 options.
+<item>General: Linux binary is ELF finally.
+<item>General: MS-DOS binary is djgpp V2.0 compatible (and runs in dosemu).
+</itemize>
+
+<tag>2.9.16 (7/4/1996), never released
+(internal incomplete alpha release)</tag>
+<itemize>
+<item>DEM: CD track identified.
+<item>DEM: player movement identified.
+</itemize>
+
+<tag>2.9.17 (7/7/1996), <tt>lmpc-2.9.17.tar.gz</tt>/<tt>lmpc2917.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: cross reference to DEM specs.
+<item>DEM: clientdata with more information.
+<item>DEM: entities: ModNum with reference to the model names.
+</itemize>
+
+<tag>2.9.18 (7/8/1996), <tt>lmpc-2.9.18.tar.gz</tt>/<tt>lmpc2918.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: stupid spawnstatic error corrected.
+<item>DEM: code beautified.
+</itemize>
+
+<tag>2.9.19 (7/14/1996), <tt>lmpc-2.9.19.tar.gz</tt>/<tt>lmpc2919.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: many new values explained.
+<item>DEM: strings can contain unprintable characters. 
+</itemize>
+
+<tag>2.9.20 (7/17/1996), <tt>lmpc-2.9.20.tar.gz</tt>/<tt>lmpc2920.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: some new values explained.
+<item>DEM: code rearranged.
+<item>DEM: corresponds (more or less) to dem-0.0.5.
+</itemize>
+
+<tag>2.9.21 (7/23/1996), <tt>lmpc-2.9.21.tar.gz</tt>/<tt>lmpc2921.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: some new values explained.
+<item>DEM: massive code rearrangements.
+</itemize>
+
+<tag>2.9.22 (8/7/1996), <tt>lmpc-2.9.22.tar.gz</tt>/<tt>lmpc2922.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: almost all explained.
+<item>DEM: text file parser is ready (lex, yacc), first check.
+<item>DEM: -s may now decompile a DEM txt file to a DEM txt file.
+<item>DEM: massive code rearrangements.
+</itemize>
+
+<tag>2.9.23 (8/14/1996), <tt>lmpc-2.9.23.tar.gz</tt>/<tt>lmpc2923.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: the ``to bin converter'' is ready. Not very stable.
+<item>General: all messages (not getopt) go to stderr.
+<item>DEM: write to - means stdout.
+<item>General: new command line options: <tt>--to-txt</tt> and <tt>--to-bin</tt>
+<item>Docu: some terms changed.
+</itemize>
+
+<tag>2.9.24 (10/6/1996), <tt>lmpc-2.9.24.tar.gz</tt>/<tt>lmpc2924.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: all float output (time inclusive) with g-format (9 digits).
+<item>DEM: more internal errors corrected.
+</itemize>
+
+<tag>2.9.25 (10/13/1996), <tt>lmpc-2.9.25.tar.gz</tt>/<tt>lmpc2925.zip</tt>
+(beta release)</tag>
+<itemize>
+<item>DEM: memory problem solved: LMPC needs now only 400-500K RAM.
+<item>Docu: version table reorganised, README, INSTALL slightly changed.
+<item>Makefiles: new targets, easier to make packages and my web-page.
+<item>DEMA: first working version.
+</itemize>
+
+<tag>2.9.26 (11/17/1996), <tt>lmpc-2.9.26.tar.gz</tt>/<tt>lmpc2926.zip</tt>
+(bug fix release)</tag>
+<itemize>
+<item>DEM: MS-DOS binary can read in DEM text files.
+<item>DEM: <tt>attack_state</tt>-&gt;<tt>effects</tt>, 
+<tt>ang_ofs_1</tt>-&gt;<tt>punchangle_x</tt>.
+<item>LMP: MS-DOS binary prints now the correct statistics.
+<item>General: new E-mail address.
+</itemize>
+
+<tag>2.9.27 (11/20/1996), <tt>lmpc-2.9.27.tar.gz</tt>/<tt>lmpc2927.zip</tt>
+(public beta release)</tag>
+<itemize>
+<item>General: many thanks to 
+Eric Gordon Fowler
+(<htmlurl url="mailto:efowler@jove.acs.unt.edu"
+name="efowler@jove.acs.unt.edu">) and
+Paolo Perrotta 
+(<htmlurl url="mailto:nan0744@iperbole.bologna.it"
+name="nan0744@iperbole.bologna.it">)
+for all their bug reports.
+<item>DEM: string in and out handles special characters better (not perfect).
+<item>DEM: text parser allows digits after an octal escape sequence.
+<item>DEM: &bsol;n, &bsol;r, &bsol;&bsol; and &bsol;" are allowed 
+character escape sequences in DEM text files.
+<item>DEM: binary file read is byte-order independent (unchecked).
+<item>DEM: binary file write is byte-order independent (unchecked).
+<item>DEM: float numbers may contain exponents.
+<item>DEM: <tt>updateentity</tt> with an entity &gt; 255 works.
+<item>General: my code survives <tt>-Wall</tt> <tt>-pedantic</tt> without
+warnings.
+<item>Docu: Old LMPC history a bit reformatted.
+</itemize>
+
+<tag>2.9.28 (11/30/1996), <tt>lmpc-2.9.28.tar.gz</tt>/<tt>lmpc2928.zip</tt>
+(public beta release)</tag>
+<itemize>
+<item>DEM: put an <tt>items</tt> entry in binary DEM files even if it is 0.
+This modification enables an error-free decompile/compile of CAMPER3.DEM by 
+``United Rangers Films'' after all.
+</itemize>
+
+<tag>2.9.29 (12/15/1996), <tt>lmpc-2.9.29.tar.gz</tt>/<tt>lmpc2929.zip</tt>
+(public beta release)</tag>
+<itemize>
+<item>DEM: <tt>--info</tt> detects DEM text files.
+<item>DEM: binary file read reorganised (coding just started).
+<item>DEMcut: coding started. First working version.
+</itemize>
+
+<tag>2.9.30 (1/5/1997), <tt>lmpc-2.9.30.tar.gz</tt>/<tt>lmpc2930.zip</tt>
+(alpha test release)</tag>
+<itemize>
+<item>DEM: binary file read totally rewritten. I use now for binary files the 
+same internal node tree representation as for text files. The text output part
+is a bit slower now but the whole project is much easier to maintain. 
+<item>DEM: <tt>--to-bin</tt> can handle binary DEM files too. It should create
+an identically copy of the input file (if I didn't make any mistakes).
+<item>DEM: binary write: last (I hope so) endian-dependence removed.
+<item>DEM: binary write: suppresses ``camera only'' blocks.
+<item>DEM: text write: suppresses ``camera only'' blocks.
+<item>DEM: text write: stops at file write errors (e.g. device full).
+<item>DEMcut: almost all new coded. The interface remains identical.
+I can now include very easy new commands. 
+<item>DEMcut: the time message can be anywhere in a block.
+<item>DEMcut: new ``m'' command to prepare multi-player DEM file 
+concatenations.
+<item>DEMcut: new ``i'' command to improve the interactive work: range may
+be interrupted, output is time-synchronised. 
+<item>Docu: Formatted with SGML-Tools 0.99.0.
+<item>General: Orthographical check with <tt>ispell</tt> (British English). 
+</itemize>
+
+<tag>2.9.31 (1/7/1997), <tt>lmpc-2.9.31.tar.gz</tt>/<tt>lmpc2931.zip</tt>
+(bug fix release)</tag>
+<itemize>
+<item>DEM: text write: CD track was never printed: totally stupid bug.
+</itemize>
+
+<tag>2.9.32 (2/9/1997) (alpha test release)</tag>
+<itemize>
+<item>DEMcut: more info on running ranges in interactive mode.
+<item>DEMcut: ``d'' command don't need files from the command line.
+<item>General: includes executables for Win32 (untested).
+<item>General: new packaging system.
+<item>General: all messages go to stderr.
+</itemize>
+
+<tag>2.9.33 (2/16/1997) (alpha test release)</tag>
+<itemize>
+<item>DMO: Redneck Rampage support started. Info works, decompression not.
+<item>DMO: Duke Nukem 3D 1.3D DMO files supported. This incompatible version
+exists since April 1996 but nobody said it to me.
+<item>DMO: endian-dependence should be removed. Never checked this.
+</itemize>
+
+<tag>2.9.34 (3/23/1997) (beta test release)</tag>
+<itemize>
+<item>DEM: <tt>--info</tt> prints the number of game tics (or frames)
+for binary DEM files.
+<item>DEM: new option <tt>--fix-multi</tt> for in-place editing.
+<item>DEM: new option <tt>--fix-multi</tt> as additional option for 
+<tt>--to-bin</tt> and <tt>--to-txt</tt>.
+<item>DEM: bin read: type check was endian-dependent (no longer).
+<item>DEM: bin read: CD track at the beginning can be anything, that Quake
+itself likes. Read the DEM specs (>=1.0.4) for details. The full CD track 
+string will be included in a DEM text file but LMPC can cope with the old
+format as well.
+<item>DEMcut: CD track commands expects the `&bsol;n' character as well.
+The old syntax continues to work.
+<item>Docu: Demolition and DemoStat mentioned.
+</itemize>
+
+<tag>3.0.0 (3/31/1997) (public beta release)</tag>
+<itemize>
+<item>DEM: text read: hours in time stamps didn't work (bug report by
+James Stephenson (<htmlurl url="mailto:james@BETAus.com"
+name="james@BETAus.com">)).
+<item>DEMcut: CD track command works now correctly.
+<item><tt>--game</tt> option repaired.
+<item>Docu: general clean-up.
+</itemize>
+
+<tag>3.0.1 (5/15/1997) (public release)</tag>
+<itemize>
+<item>General: text write: Win32 versions make MS-DOS style
+line breaks (hint by
+David Wright (<htmlurl url="mailto:wgwright@mnsinc.com"
+name="wgwright@mnsinc.com">)).
+<item>General: Minimalist GNU Win32 (Mingw32) version ready (untested).
+<item>Win32: The <tt>syserror</tt> function was always broken. Why didn't 
+somebody give me a hint?
+<item>DEM: bin read: `new' (version &gt; 1.06) DEM format.
+<item>DEM: bin write: stupid error in <bf>clientdata</bf> removed. 
+It was there since 2.9.23 (hint by
+Yonatan Donner (<htmlurl url="mailto:ruthd@post.tau.ac.il"
+name="ruthd@post.tau.ac.il">)).
+<item>DEM: entry clientdata-&gt;weapon may contain invalid values
+(more than 1 bit set). 
+<item>Packaging: Win32 versions with standard file names. Only the `MS-DOS
+Binary Package' use the short 8.3 name scheme.
+</itemize>
+
+<tag>3.1.1 (7/20/1997) (internal alpha test release)</tag>
+<itemize>
+<item>QWD: bin read: coding started. Nothing completed. 
+<item>Docu: all tables now floating in TeX.
+<item>Conf: all is now Autoconf configured.
+</itemize>
+
+<tag>3.1.2 (7/28/1997) (alpha test release)</tag>
+<itemize>
+<item>DEMcut: interactive mode is removed in systems without named pipes.
+<item>DBS: alpha code.
+<item>Conf: Autoconf rules newly written. Really everything is Autoconf 
+configured.
+<item>Docu: DBS mentioned.
+<item>Docu: rename INSTALL in COMPILE.
+<item>Docu: new file: Autoconf generic INSTALL.
+</itemize>
+
+<tag>3.1.3 (8/17/1997) (alpha test release)</tag>
+<itemize>
+<item>General: package renamed: LMP/DMO/DEM/QWD Control Centre -&gt; 
+Little Movie Processing Centre
+<item>QWD: QuakeWorld 2.00 support included.
+<item>Docu: back again to SGML-Tools 0.99.0.
+<item>Docu: chapters restructured.
+</itemize>
+
+<tag>3.1.4 (12/29/1997) (alpha test release)</tag>
+<itemize>
+<item>Conf: <tt>Makefile.in</tt> created from <tt>Makefile.am</tt> by 
+GNU Automake. Much easier to maintain! 
+<item>General: Hexen II support just started. Not complete. Can't even
+decompile correctly a single file.
+<item>Compile: some general routines in a library.
+<item>General: Quake II support just started. Not complete. Can't even
+decompile deltapacketentities.
+</itemize>
+
+<tag>3.1.5 (1/1/1998) (alpha test release)</tag>
+<itemize>
+<item>DM2: text output: many comments included.
+<item>Docu: SGML-Tools 1.0.2 ready after all.
+<item>Conf: Automake 1.2 compliant. Some yacc/lex changes were needed.
+</itemize>
+
+<tag>3.1.6 (3/12/1998) (alpha test release)</tag>
+<itemize>
+<item>DM2: binary read: nasty malloc/free bug removed.
+<item>DM2: some new commands got better names.
+<item>DEM: binary read: CD track totally rewritten.
+<item>LMP: can handle -v1.10 (for the released DOOM source code distribution)
+<item>Web: PlanetQuake is the new home.
+<item>Docu: SGML-Tools 1.0.5 used.
+</itemize>
+
+<tag>3.1.7 (6/17/1998) (alpha test release)</tag>
+<itemize>
+<item>DBS: subtle sync problem solved. Thanks to Paul Baker
+(<htmlurl url="mailto:pbaker@idle.com" name="pbaker@idle.com">) for his bug 
+report.
+<item>DM2: text in: parser implemented.
+<item>DM2: some command names changed.
+<item>DM2: binary out: implementation started.
+</itemize>
+
+<tag>3.1.8 (7/15/1998) (intermediate beta release)</tag>
+<itemize>
+<item>DM2: server record files implemented.
+<item>Conf: dist target for source package is working now.
+<item>Conf: more checks for more platforms.
+<item>Docu: SGML-Tools 1.0.7 used.
+<item>QWD: binary in: up to QuakeWorld 2.29BETA.
+</itemize>
+
+<tag>3.1.9 (8/16/1998) (beta release)</tag>
+<itemize>
+<item>QWD: text in: written.
+<item>QWD: binary out: written. Due to the ongoing demand by many users
+I implemented now the QWD binary write routine. This gives together with the
+text read routine the first really working QWD editor.
+<item>DM2: Visual Weapon (VWep) support.
+<item>DM2: some really bad errors corrected.
+<item>Conf: After many fights with the Automake system, `make distcheck'
+works finally without problems.
+</itemize>
+
+<tag>3.2.0 (9/6/1998) (stable release)</tag>
+<itemize>
+<item>DM2: binary read and binary write: long vwep corrected. Now works
+<tt>massive1.dm2</tt>.
+<item>DM2: binary write: <tt>timeofs</tt> in <bf>sound</bf> wasn't even
+implemented.
+<item>DM2: text read: allows now empty <bf>packetentities</bf>. Many users
+reported this problem in reease 3.1.9. Thanks to all of you.
+<item>QWD: text read: allows now empty <bf>packetentities</bf> like in DM2
+text read.
+<item>text read: useless terminals removed.
+<item>DM2: unused bits in bit mask (<bf>sound</bf>, <bf>spawnbaseline</bf>,
+<bf>packetentities</bf>) detected. It's a real mess that Keygrip 2 set unused
+bits in DM2 files but I implemeted an easy way to cope with it.
+Now works <tt>latenite.dm2</tt>.
+<item>DM2: text read: allows now empty <bf>playerinfo</bf>. Now works
+<tt>grenbfg.dm2</tt>.
+<item>DEM: Hexen II support (it was always only a small subset) totally 
+removed.
+</itemize>
+
+<tag>3.2.1 (9/8/1998) (stable release)</tag>
+<itemize>
+<item>DEM: text write: didn't write the CD track. A stupid integration
+error. I know, I actually have to make a software quality test with all my
+test demos before the upload.
+<item>DEM: to text: problems with <tt>--game QUAKE</tt> switch. Not really
+solved. Just a kludge inserted, which even slows the program down a bit.
+</itemize>
+
+<tag>3.2.2 (1/9/1999) (public release)</tag>
+<itemize>
+<item>QWD: bin read: protocol version 27 (game version 2.29BETA and up) 
+corrected.
+<item>QWD: read text: many small but important parsing problems
+removed. This was possible because Joel Baxter 
+(<htmlurl 
+url="mailto:jbaxter@lemur.stanford.edu"
+name="jbaxter@lemur.stanford.edu">)
+provided me with a problematic QWD file (recorded with game version 2.21) and
+many good hints.
+<item>QWD: <bf>updatepl</bf> better.
+<item>DM2: updated up to game version 3.20.
+<item>DM2: bin read: <bf>temp&lowbar;entity</bf> parse code directly
+calculated from the DM2 specs.
+<item>Docu: SGML-Tools 1.0.9 used.
+<item>Compile: Cygwin and Mingw32 binaries are cross-compiled with the
+Cygwin toolset version B20.1.
+<item>DM2cat: The DM2 file concatenator included.
+</itemize>
+
+<tag>3.2.3 (1/12/1999) (public release)</tag>
+<itemize>
+<item>Compile: udm2-te&lsqb;123&rsqb;.c are created directly in the source
+directory.
+<item>Package: udm2-te&lsqb;123&rsqb;.c are included in the source and full
+package.
+I forgot them in the last release. Thanks to Stefan Schwoon (<htmlurl 
+url="mailto:schwoon@informatik.tu-muenchen.de"
+name="schwoon@informatik.tu-muenchen.de">) for mention this error.
+<item>The script to extract the C-Source out of the specs file is included
+too.
+<item>WWW: upload script uploads now the packages to the right place to 
+deliver them to all <url url="http://www.cdrom.com"> mirrors. In the last
+release this was totally wrong.
+</itemize>
+
+<tag>3.2.4 (1/19/1999) (public release)</tag>
+<itemize>
+<item>QWD: bin read: new <bf>serverinfo</bf> message wrong handled.
+Thanks to Michale Hofele (<htmlurl 
+url="mailto:michael@i603.hadiko.de"
+name="michael@i603.hadiko.de">) for the bug-report.
+</itemize>
+
+<tag>3.2.5 (4/6/1999) (public release)</tag>
+<itemize>
+<item>Conf: Autoconf 2.13 and Automake 1.4 used.
+<item>DEMcut: interactive mode corrected. Thanks to Vasily Kuznetsov
+(<htmlurl url="mailto:VKuznetsov@microtest.ru"
+name="VKuznetsov@microtest.ru">) for the bug-report and patch.
+<item>QWD: bin read: <bf>setpause</bf> corrected.
+Thanks to Christer Sandin (<htmlurl url="mailto:czsuch@ocag.ch"
+name="czsuch@ocag.ch">) for his bug report.
+<item>DM2: multi-level repair corrected. Thanks to Zerox
+(<htmlurl url="mailto:zerox@prism.ne.mediaone.net"
+name="zerox@prism.ne.mediaone.net">) for the bug-report and a short demo
+file.
+</itemize>
+
+<tag>3.2.6 (4/30/1999) (public release)</tag>
+<itemize>
+<item>QWD: bin read: initialization of the precache lists for game version
+2.20 and higher corrected.
+<item>QWD: <bf>maxspeed</bf> and <bf>entgravity</bf> corrected.
+<item>
+Thanks to R. Quaak (<htmlurl url="mailto:jaqua00@direct.a2000.nl"
+name="jaqua00@direct.a2000.nl">) for the <em>useful</em> bug report and a
+short demo file.
+Remember: with a good bug report and a short demo file, I can correct a bug
+really fast.
+</itemize>
+
+<tag>3.2.7 (5/24/1999) (bug fix release)</tag>
+<itemize>
+<item>Compile: source can be compiled with C++ compilers too. No C++
+specific feature used up to now. Many new C++ related warnings corrected.
+<item>General: severe buffer overflow problems corrected.
+Thanks to Nathan Whitaker (<htmlurl
+url="mailto:naif@3dcoder.freeserve.co.uk" 
+name="naif@3dcoder.freeserve.co.uk">) for the bug report and a demo file.
+<item>Compile: Linux binaries are glibc finally. I updated my main development
+system from SuSE Linux 4.2 (about 4 years old) to SuSE Linux 6.1 to do
+this.
+</itemize>
+
+<tag>3.2.8 (6/3/1999) (bug fix release)</tag>
+<itemize>
+<item>QWD: <bf>modellist</bf> and <bf>soundlist</bf> corrected.
+Thanks to Hoffy
+(<htmlurl url="mailto:ripple@powerup.com.au"
+name="ripple@powerup.com.au">)
+for the bug report and a demo file.
+</itemize>
+
+<tag>3.2.9 (8/18/1999) (public release)</tag>
+<itemize>
+<item>DM2: multi-level repair method improved.
+Thanks to Mike Dowell 
+(<htmlurl url="mailto:mdowell@Mike-D.com"
+name="mdowell@Mike-D.com">)
+for the bug report and a demo file.
+<item>DM3: some code fragments prepared but nothing compiled in.
+<item>Compile: MS-DOS binaries cross-compiled with egcs-2.91.66.
+</itemize>
+
+<tag>3.3.0 (1/23/2000) (public release)</tag>
+<itemize>
+<item>DM2: RLA (Quake II Relay) support.
+<item>Docu: Some links updated.
+</itemize>
+
+
+</descrip>
+
+<p>
+Plan for 4.0.0 in order of importance
+<enum>
+<item>
+Block-oriented rewrite of the text parse routines.
+<item>
+Object-oriented demo handling. This is really necesary for further recording
+formats.
+<item>
+More code generation out of the XML specs source.
+<item>
+Strict separation of the different recording types and the main program. 
+Maybe something like <tt>librecord.so</tt>.
+<item>
+<tt>--split-multi</tt> option to split multi-level recordings.
+<item>
+Half-Life (DEM), Heretic II (DM2) and Sin (DM2) support.
+<item>
+DEMcut and DBS with QWD and DM2 support.
+<item>
+File-IO from <tt>stdin</tt> and to <tt>stdout</tt>, really difficult is the
+file type detection. 
+<item>
+Redneck Rampage decompression.
+</enum>
+
+<p>
+Ideas finally dropped out:
+<enum>
+<item>Hexen II and HexenWorld support.
+</enum>
+
+<p>
+Open problems
+<enum>
+<item>
+Does someone know the difference between the Redneck Rampage compression
+algorithm and the one used in Duke Nukem 3D?
+</enum>
+
+<p>
+A new regular version of LMPC (like 3.3.0) will be announced on
+<htmlurl name="BluesNews" url="http://www.bluesnews.com"> and on 
+<htmlurl name="PlanetQuake" url="http://www.planetquake.com">.
+<p>
+You can download LMPC from my <url url="@HOMEURL@" name="@HOMENAME@">.
+<p>
+There you will find always the latest release with new features
+and brand new bugs.
+
+</article>

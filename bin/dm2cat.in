@@ -1,0 +1,32 @@
+#! @PERL@ -w
+
+# DM2cat, The DM2 file concatenator
+# Uwe Girlich, @DATE@ (uwe@planetquake.com)
+# Usage: dm2cat infile1 [infile2 ...] outfile
+
+use strict;
+
+# This works with / as a path separator only!
+( my $script = $0 ) =~ s,.*/,,;
+
+die "usage: $script infile1 [infile2 ...] outfile\n" if (@ARGV<2);
+
+my @infiles = @ARGV;
+my $outfile = pop @infiles;
+
+# print "Writing $outfile\n";
+open OUTFILE, ">$outfile" || die "can't write $outfile: $!\n";
+foreach my $infile (@infiles) {
+  my $buffer;
+
+  open INFILE, $infile || die "can't read $infile: $!\n";
+  # print "Reading $infile:";
+  my $size = (-s $infile) - 4;
+  # print "$size bytes\n";
+  sysread INFILE, $buffer, $size;
+  syswrite OUTFILE, $buffer, $size;
+  close INFILE;
+}
+my $endblock = pack "C4", 255, 255, 255, 255;
+syswrite OUTFILE, $endblock, 4;
+close OUTFILE;

@@ -1,0 +1,273 @@
+This COMPILE file describes how to compile the various LMPC binaries for
+Unix, MS-DOS, Win32 (Cygwin and Mingw32) on any Unix system.
+
+This is a high-level file. If you are Joe Windows User, don't even try to
+read it. It would be a complete waste of your time.
+
+
+
+1. Unix binaries
+
+LMPC comes with an Autoconf configure script. This makes it very easy to
+compile it on various systems. Read the INSTALL text file for more general
+information on Autoconf configure scripts. The simple way is
+	./configure ; make ; make install
+as usual.
+
+
+
+2. MS-DOS binaries
+
+The MS-DOS binaries can be cross-compiled with a GO32 compatible gcc.
+
+doc/COMPILE-go32 is a shell script which can be used to compile such a 
+cross-compiler under Linux. You'll have to change some things but it should 
+be fairly easy to use.
+
+The MS-DOS binaries may be cross-compiled as usual:
+	CC=/path/to/cross-gcc \
+	CXX=/path/to/cross-g++ \
+	RANLIB=/path/to/cross-ranlib \
+	./configure --host=i386-pc-msdosdjgpp && make
+but the main Makefile provides the target go32 to simplify this task.
+I use it for the MS-DOS Binary Package. You may have to adapt some paths
+in Makefile.in (or better Makefile.am if you have Automake) and re-configure.
+
+The executables created with the cross-compiler need the special runtime
+program bin/cwsdpmi.exe (it is also available from the Quake CD).
+
+
+
+3. Win32 (Cygwin) binaries
+
+The Win32 (Cygwin) binaries can be cross-compiled on any Unix system
+using `the Cygwin toolset' (formerly known as GNU-Win32/Cygwin32) from Cygnus.
+
+Get the version b20 from
+	ftp://go.cygnus.com/pub/sourceware.cygnus.com/cygwin/cygwin-b20/dev-src.tar.bz2
+and unpack it from /usr/src/cygnus. All files are now in the
+/usr/src/cygnus/src subdirectory.
+
+Get the update to version b20.1 from
+	ftp://go.cygnus.com/pub/sourceware.cygnus.com/cygwin/cygwin-b20/20.0-20.1-dev-src.diff.bz2
+and apply the unpacked patch.
+
+The full unpacked toolset directory tree under /usr/src/cygnus should now
+contain 140676 kb.
+
+The run-time DLL alone can be downloaded from
+	ftp://go.cygnus.com/pub/sourceware.cygnus.com/cygwin/cygwin-b20/cygwin1-20.1.dll.bz2
+Unpack it (with bunzip2) and copy it as cygwin1.dll in your Windows system
+directory.
+
+The compile process of the toolset is a bit tricky. It may be better to compile
+the whole stuff in a different directory then the base source directory. This
+way the base source directory may be exported via NFS and everywhere someone
+hacks on its own compilation in its own build directory.
+
+make your toolset directory
+        mkdir -p /usr/src/cygnus
+
+change into it
+	cd /usr/src/cygnus
+
+unpack the source code
+	bunzip2 -c /tmp/dev-src.tar.bz2 | tar xf -
+
+change into the source directory
+	cd src
+
+unpack and apply the patch file
+	bunzip2 -c /tmp/20.0-20.1-dev-src.diff.bz2 | patch -p1 -E
+
+I was unable to appy this patch. It simply didn't work. So maybe the source
+is already 20.1 or it is the wrong patch.
+
+let every-one read all files
+	chmod -R a+r *
+
+let every-one execute all script files
+	find . -type f -perm +a+x -exec chmod a+x {} \;
+
+change back into the toolset directory
+	cd ..
+
+create a build directory next to the src directory
+	mkdir build
+
+change to it
+	cd build
+
+configure the whole package from there. You can choose any prefix.
+I use /usr/self/cygnus, you might prefer /usr/local/cygnus. Don't do the
+following configure and make process as root! root can be used to install
+a package but not to compile it.
+	../src/configure --target=i386-pc-cygwin32 --prefix=/usr/cygnus
+
+This configuration process takes about 3 minutes.
+
+Make the whole thing
+	make
+This process takes about 15 minutes. Now you have 108324 kb in the build 
+directory.
+
+Now install everything as root.
+	su -
+	make install
+This process takes about 2 minutes. Now you have 55448 kb in the /usr/cygnus
+directory.
+
+Under SuSE Linux 4.2 I had a severe problem with this installation, because
+/dev/null transformed to a regular file. Please check this before a reboot or
+your system won't come up again correctly! Simply recreate /dev/null and make
+it writeable for everyone. Do it like this:
+
+	su -
+	rm /dev/null
+	mknod /dev/null c 1 3
+	chmod a+rw /dev/null
+
+With my new SuSE Linux 6.1 this problem didn't appear.
+
+Sidenote: gdb can be compiled in its subdirectory without any problems:
+
+	cd build
+	mkdir gdb
+	cd gdb
+	../../src/gdb/configure --target=i386-pc-cygwin32 --prefix=/usr/cygnus
+	make
+	su -
+	make install
+
+This gives you an under Unix working gdb for Win32 files.
+
+If you could apply the 20.1 patch everything should be fine. If not, you
+have to change an include directory in the specs file
+/usr/cygnus/lib/gcc-lib/i386-pc-cygwin32/egcs-2.91.57/specs
+The path part i586-cygwin32 in line 8 must be changed to i386-pc-cygwin32.
+
+The Win32 (Cygwin) binaries may be cross-compiled as usual:
+	CC=/path/to/cross-gcc \
+	CXX=/path/to/cross-g++ \ 
+	RANLIB=/path/to/cross-ranlib \
+	./configure --host=i386-pc-cygwin && make
+but the main Makefile provides the target cygwin to simplify this task.
+I use it for the Win32 (Cygwin) Binary Package. You may have to adapt 
+some paths in Makefile.in (or better Makefile.am if you have Automake) and 
+re-configure.
+
+The executables created with the cross-compiler need the additional DLL
+cygwin1.dll in their c:\windows\system directory to run.
+Copy cygwin1.dll from /usr/cygnus/bin/ to this place. You may have to
+strip the just (with -g) compiled DLL.
+
+
+
+4. Win32 (Mingw32) binaries
+
+The Win32 (Mingw32) binaries can be cross-compiled on any Unix system
+with the same compiler, which was used for the Cygwin binaries.
+
+The only difference is to use the additional flag -mno-cygwin in the compile
+run (to get a different set of include files) and in the link run (to leave
+out the cygwin1.dll).
+
+The Win32 (Mingw32) binaries may be cross-compiled as usual:
+	CC=/path/to/cross-gcc \
+	CXX=/path/to/cross-g++ \
+	RANLIB=/path/to/cross-ranlib \
+	CFLAGS=-mno-cygwin \
+	LDFLAGS=-mno-cygwin \
+	./configure --host=i386-pc-mingw32 && make
+but the main Makefile provides the target mingw32 to simplify this task.
+I use it for the Win32 (Mingw32) Binary Package. You may have to adapt 
+some paths in Makefile.in (or better in Makefile.am if you have Automake) and 
+re-configure.
+
+
+
+5. Why 2 different Win32 packages?
+
+My programs are (from a programmers point of view) so simple, they don't
+need the full power of the Cygwin library. With Mingw32 I can compile a native
+Win32 program, which doesn't need any extra files.
+
+There are some drawbacks coming with Mingw32 because the Microsoft
+C-Library crtdll.dll is far from being ANSI-compliant (let alone any kind of
+POSIX compliance). Standard functions like strsep or memmem are missing but in
+general the GNU C library source code and a good Autoconf system helps a lot
+in such cases.
+
+Users report a bit slower execution of lmpcm.exe in comparison to lmpc32.exe.
+
+
+
+6. Program tests
+
+My computers are all "Linux only". This makes it a bit difficult to check the
+cross-compiled programs.
+
+I test the Linux versions with a simple script, which does all possible
+conversions and compares the first and last binary file. They must be
+identical. I have a bunch of demo files for this but I do need always new
+and strange ones.
+
+I test the MS-DOS versions in the DOS emulator (DOSemu) of Linux shortly.
+
+I test the Win32 (Mingw32) versions in the Windows emulator (Wine) of Linux
+shortly.
+
+I test the Win32 (Cygwin) versions on a Windows NT 3.51 computer at work after
+packaging and uploading. I know it's a bit late but the Cygwin b20.1 binaries
+don't work in the Windows emulator (Wine) of Linux.
+
+
+
+7. Additional compilation hints
+
+You need lex(1) and yacc(1) to compile the package. I compile it with flex
+version 2.5.4 and GNU Bison version 1.25 because they were included in my
+SuSE Linux 6.1. They should compile just fine with other versions too.
+I don't provide precompiled C-files for the scanner and parser because
+standard (non-GNU) C compilers have difficulties with the bison created C
+source.
+
+The full package is written for Automake 1.4 compliance. The cross-compile
+rules were added very rude but anyway, it works as it is.
+
+
+
+8. Compiling speed
+
+The whole process of configuring and compiling Linux, MS-DOS and Win32
+(Cygwin and Mingw32) binaries of LMPC, DEMcut and DBS, the creation of the
+documentation for the distribution packages (txt, doc, ps) and the
+packaging itself takes on my Pentium II 400 MHz about 3 minutes (make pack).
+
+
+
+9. C++ issues
+
+I recently decided to use a C++ compiler to find some more warnings in my
+programs. Now I only need to solve some problems with my several
+cross-compilers. Until these things are cleared up, I'll continue to compile
+and distribute all my packages with plain C.
+
+Who wants to use the new C++ variant first, can do this with the Perl script 
+bin/cprep, which makes the usual changes (file extension change from .c to
+.cc, changes in configure.in, configure, src/Makefile.am, src/Makefile.in
+and src/Makefile. bin/cprep can reverse these changes to .c as well.
+
+
+
+10. Compiler warnings
+
+I am a fussy programmer. If even a stupid compiler can find some syntax
+warnings in my programs, then I surely made some even worse semantic mistakes
+as well. My (unreachable) goal is to eliminate all warnings coming from all
+possible compilers. Please send me more compiler warnings from several
+platforms.
+
+
+
+Uwe Girlich

@@ -1,0 +1,219 @@
+dnl Process this file with autoconf to produce a configure script
+
+AC_INIT(src/lmpc.h)
+dnl get system type
+AC_CANONICAL_SYSTEM
+
+dnl -----------------------------------------------------
+dnl This is the main version definition area.
+dnl wpu parse start /^([^=]+)="(.*)"/
+PACKAGE="lmpc"
+TITLE="The Little Movie Processing Centre"
+VERSION="3.3.0"
+DATE="1/23/2000"
+COMMENT="public release"
+QUALITY="stable"
+dnl wpu parse end
+dnl Here is the end of the main version definition area.
+dnl -----------------------------------------------------
+
+USE_CPLUSPLUS=no
+
+dnl I know it. The better way is to bring the package and version
+dnl only here but wpu can only parse the upper variant (on two lines).
+AM_INIT_AUTOMAKE($PACKAGE,$VERSION)
+
+AM_CONFIG_HEADER(config.h)
+
+dnl automake needs this
+AC_ARG_PROGRAM
+
+dnl subst own variables 
+AC_SUBST(DATE)dnl
+AC_SUBST(COMMENT)dnl
+
+dnl subst Autoconf variables
+AC_SUBST(DBS)dnl
+AC_SUBST(host)dnl
+AC_SUBST(NETLIBS)dnl
+
+dnl insert in config.h.in
+AC_DEFINE_UNQUOTED(DATE,"${DATE}")
+AC_DEFINE_UNQUOTED(COMMENT,"${COMMENT}")
+AC_DEFINE_UNQUOTED(HOST,"${host}")
+
+dnl Checks for programs.
+AC_PROG_CC
+if test $USE_CPLUSPLUS = yes; then
+  AC_PROG_CXX
+fi
+AM_PROG_LEX
+AC_PROG_YACC
+AC_PROG_INSTALL
+INSTALL_SCRIPT='${INSTALL} -m 755'
+AC_SUBST(INSTALL_SCRIPT)
+AC_PROG_RANLIB
+AC_PROG_MAKE_SET
+dnl AC_PATH_PROG(GZIP, gzip, gzip)dnl
+AC_PATH_PROG(PERL, perl, perl)dnl
+AC_PATH_PROG(RM, rm, rm)dnl
+AC_PATH_PROG(SED, sed, sed)dnl
+AC_PATH_PROG(SGML2HTML, sgml2html, sgml2html)dnl
+AC_PATH_PROG(SGML2LATEX, sgml2latex, sgml2latex)dnl
+AC_PATH_PROG(SGML2TXT, sgml2txt, sgml2txt)dnl
+dnl get the full directory name of the configure stuff
+olddir=`pwd`
+cd $ac_aux_dir/bin
+fulldir=`pwd`
+cd $olddir 
+AC_PATH_PROG(WPU, wpu, wpu, $PATH:$fulldir)dnl
+unset fulldir
+AC_PATH_PROG(ZIP, zip, zip)dnl
+
+
+dnl try to add some options on the already calculated GCC CFLAGS
+if test $GCC = yes; then
+  CFLAGS="$CFLAGS -Wall -pedantic"
+fi
+
+if test $USE_CPLUSPLUS = yes; then
+  dnl try to add some options on the already calculated G++ CFLAGS
+  if test $GXX = yes; then
+    CXXFLAGS="$CXXFLAGS -Wall -pedantic"
+  fi
+
+  dnl we need the C++ compiler for the following tests
+  AC_LANG_CPLUSPLUS
+fi
+
+dnl Checks for libraries.
+AC_CHECK_LIB(m, main)
+AC_CHECK_LIB(nsl,gethostbyname,NETLIBS="$NETLIBS -lnsl",,)
+AC_CHECK_LIB(socket,socket,NETLIBS="$NETLIBS -lsocket",,)
+
+dnl Check for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(memory.h sys/ipc.h sys/shm.h sys/time.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_INLINE
+dnl AC_C_CONST
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+dnl Checks for library functions.
+AC_FUNC_ALLOCA
+AC_FUNC_MEMCMP
+dnl AC_FUNC_SETVBUF_REVERSED
+AC_CHECK_FUNC(shmget, DBS=dbs, unset DBS)
+AC_CHECK_FUNCS(mkfifo gettimeofday strdup)
+dnl AC_CHECK_FUNCS(gethostname select socket strerror strtol)
+AC_CHECK_FUNC(getopt_long,,LIBOBJS="$LIBOBJS getopt.o getopt1.o")
+AC_MSG_CHECKING(for a memmem prototype)
+AC_EGREP_HEADER(memmem,string.h,ac_memmem_proto=yes,ac_memmem_proto=no)
+if test $ac_memmem_proto = yes; then
+  AC_DEFINE_UNQUOTED(HAVE_MEMMEM_PROTOTYPE)
+fi
+AC_MSG_RESULT($ac_memmem_proto)
+AC_REPLACE_FUNCS(memmem)
+AC_REPLACE_FUNCS(strsep)
+
+dnl enable options, no option do work actually, they must all be enabled
+AC_ARG_ENABLE(lmp,
+    [  --enable-lmp            enables LMP support (must be enabled)],
+    ENABLE_LMP=$enableval
+)
+: ${ENABLE_LMP=yes}
+case "$ENABLE_LMP" in
+    n | no) : ;;
+    y | ye | yes) 
+        AC_DEFINE(ENABLE_LMP)
+    ;;
+esac
+
+AC_ARG_ENABLE(dmo,
+    [  --enable-dmo            enables DMO support (must be enabled)],
+    ENABLE_DMO=$enableval
+)
+: ${ENABLE_DMO=yes}
+case "$ENABLE_DMO" in
+    n | no) : ;;
+    y | ye | yes) 
+        AC_DEFINE(ENABLE_DMO)
+    ;;
+esac
+
+AC_ARG_ENABLE(dem,
+    [  --enable-dem            enables DEM support (must be enabled)],
+    ENABLE_DEM=$enableval
+)
+: ${ENABLE_DEM=yes}
+case "$ENABLE_DEM" in
+    n | no) : ;;
+    y | ye | yes) 
+        AC_DEFINE(ENABLE_DEM)
+    ;;
+esac
+
+AC_ARG_ENABLE(qwd,
+    [  --enable-qwd            enables QWD support (must be enabled)],
+    ENABLE_QWD=$enableval
+)
+: ${ENABLE_QWD=yes}
+case "$ENABLE_QWD" in
+    n | no) : ;;
+    y | ye | yes) 
+        AC_DEFINE(ENABLE_QWD)
+    ;;
+esac
+
+AC_ARG_ENABLE(dm2,
+    [  --enable-dm2            enables DM2 support (must be enabled)],
+    ENABLE_DM2=$enableval
+)
+: ${ENABLE_DM2=yes}
+case "$ENABLE_DM2" in
+    n | no) : ;;
+    y | ye | yes) 
+        AC_DEFINE(ENABLE_DM2)
+    ;;
+esac
+
+AC_ARG_ENABLE(dm3,
+    [  --enable-dm3            enables DM3 support (must not be enabled)],
+    ENABLE_DM3=$enableval
+)
+: ${ENABLE_DM3=no}
+case "$ENABLE_DM3" in
+    n | no) : ;;
+    y | ye | yes) 
+        AC_DEFINE(ENABLE_DM3)
+    ;;
+esac
+
+dnl set some vars in src/Makefile to switch DM3 support on or off
+if test ${ENABLE_DM3} = "yes" ; then
+	UDM3_H=udm3.h
+	UDM3_C=udm3.c
+	UDM3_O=udm3.o
+	AC_SUBST(UDM3_H)
+	AC_SUBST(UDM3_C)
+	AC_SUBST(UDM3_O)
+fi
+
+
+dnl output
+AC_OUTPUT([Makefile bin/Makefile src/Makefile doc/Makefile bin/dema bin/dm2cat bin/extract],
+[echo timestamp > stamp-h ; chmod +x bin/dema bin/dm2cat bin/extract])
+
+dnl check warnings
+dnl AC_MSG_WARN(build=$build host=$host target=$target)
+dnl AC_MSG_WARN('host_cpu=$host_cpu host_vendor=$host_vendor host_os=$host_os')
+
+dnl configure warnings
+if test "$ac_cv_header_sys_ipc_h" != yes; then
+  AC_MSG_WARN(Your systems lacks IPC. DBS will not be compiled.)
+fi

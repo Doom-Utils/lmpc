@@ -1,0 +1,195 @@
+This is LMPC 3.3.0 (public release), Full Package
+
+This is a stable release.
+
+LMPC is the Little Movie Processing Centre.
+LMPC helps you to handle LMP, DMO, DEM, QWD and DM2 files.
+DEM files are supported more extensive with
+DEMA, The DEM Text File Analyser,
+DEMcut, The DEM file cutter tool and
+DBS, The Demo Broadcasting Server
+DM2cat, The DM2 file concatenator is included as well.
+
+Look in the doc subdirectory for a full documentation. 
+
+Features: 
+---------
+ * LMPC: The Little Movie Processing Centre
+   + many supported games:
+     - old DOOM (version < 1.4)
+     - new DOOM (version >= 1.4)
+     - Ultimate DOOM
+     - DOOM ][ (all versions)
+     - HERETIC (all versions)
+     - HEXEN (all versions)
+     - STRIFE (Shareware)
+     - Duke Nukem 3D (Shareware versions 1.0, 1.1 and 1.3D)
+     - Redneck Rampage (demo version 0.7 alpha), not fully supported
+     - Quake (versions 0.91 .. 1.09)
+     - QuakeWorld (version 1.64 .. 2.30)
+     - Quake II (versions 3.05 .. 3.20 + relay extensions)
+   + get information about one or more LMP/DMO/DEM/QWD/DM2 files
+   + change the version of an existing LMP file
+   + change the player number who recorded the multi-player LMP file
+   + add some seconds of waiting at the end of a LMP file
+   + remove the PAUSE parts of LMP files
+   + repair multi-level DEM and DM2 files
+   + decompile (a part of) a LMP/DMO/DEM/QWD/DM2 file (binary) to a 
+     Lmp Source (LS) file (ASCII text)
+   + compile one or more LMP/DEM/QDW/DM2 text files to a LMP/DEM/QWD/DM2 
+     binary file
+ * DEMA: The DEM Text File Analyser
+   + prints some statitics about a demo file (Perl script)
+ * DEMcut: The DEM file cutter tool
+   + cut parts out of a DEM file
+   + change the play-back speed
+   + play a DEM file backwards
+   + join easily parts of different (even multi-player) DEM files
+ * DBS: The Demo Broadcasting Server
+   + due to the many limits in Microsoft OSes, it works in Unix only
+   + fake Quake server
+   + may be `Qspy'ed
+   + if connected, plays a prepared DEM file to any client
+ * DM2cat: The DM2 file concatenator
+   + concats binary DM2 files together (Perl script)
+ * full source code is available for everything
+     This is free software, and you are welcome to redistribute it under 
+     certain conditions; read the GNU General Public Licence for details.
+ * precompiled binaries are available for
+   + Linux (egcs-2.91.66, glibc, x86) 
+   + MS-DOS (egcs-2.91.66, cross-compiled like djgpp V2.0 (go32))
+   + Win32 (cross-compiled with the Cygwin toolset B20.1 (egcs-2.91.57),
+       needs cygwin1.dll)
+   + Win32 (cross-compiled with the Cygwin toolset B20.1 (egcs-2.91.57)
+       and Mingw32, does not need any additional DLLs)
+
+Files: 
+------
+./COPYING              GNU General Public Licence
+./COPYING.LIB          GNU Library General Public Licence
+./INSTALL              generic Autoconf install hints
+./Makefile.am          Automake template for Makefile.in
+./Makefile.in          Autoconf template for Makefile
+./README               you read it
+./README.base          template for all READMEs
+./acconfig.h           Autoconf template for config.h.in
+./aclocal.m4           Automake macros
+./bin/Makefile.am      Automake template for bin/Makefile.in
+./bin/Makefile.in      Autoconf template for bin/Makefile
+./bin/cprep            C to C++ conversion tool
+./bin/cwsdpmi.exe      MS-DOS DPMI server for the MS-DOS binaries
+./bin/dbs              DBS Linux binary (egcs-2.91.66, glibc, x86, ELF)
+./bin/dema             DEM Text File Analyser (Perl script)
+./bin/dema.in          template for DEM Text File Analyser (Perl script)
+./bin/demcut           DEMcut Linux binary (egcs-2.91.66, glibc, x86, ELF)
+./bin/demcut.exe       DEMcut MS-DOS binary (egcs-2.91.66, djgpp V2.0)
+./bin/demcut32.exe     DEMcut Win32 binary (Cygwin B20.1)
+./bin/demcutm.exe      DEMcut Win32 binary (Cygwin B20.1 + Mingw32)
+./bin/dm2cat           The DM2 file concatenator (Perl script)
+./bin/dm2cat.in        template for The DM2 file concatenator (Perl script)
+./bin/extract          the specs to C extractor (Perl script)
+./bin/extract.in       template for the specs to C extractor (Perl script)
+./bin/gentok           includes tokens in yacc and lex files
+./bin/lmpc             LMPC Linux binary (egcs-2.91.66, glibc, x86, ELF)
+./bin/lmpc.exe         LMPC MS-DOS binary (egcs-2.91.66, djgpp V2.0)
+./bin/lmpc32.exe       LMPC Win32 binary (Cygwin B20.1)
+./bin/lmpcm.exe        LMPC Win32 binary (Cygwin B20.1 + Mingw32 0.2)
+./bin/wpu              The Web Publishing Utility
+./config.guess         Autoconf host system guess
+./config.h.in          Autoconf template for config.h
+./config.sub           Autoconf host system name normaliser
+./configure            Autoconf configure script
+./configure.in         Autoconf template for configure
+./doc/COMPILE          compilation hints
+./doc/COMPILE-go32     cross compilation hints for go32
+./doc/Makefile.am      Automake template for doc/Makefile.in
+./doc/Makefile.in      Autoconf template for doc/Makefile
+./doc/lmpc.base        the main documentation file (SGML-Tools source)
+./doc/lmpc.doc         documentation (plain ASCII)
+./doc/lmpc.ps          documentation (PostScript)
+./doc/lmpc.txt         documentation (formatted ASCII)
+./install-sh           Autoconf install script
+./missing              Automake help script
+./mkinstalldirs        make directory hierarchy
+./src/Makefile.am      Automake template for src/Makefile.in
+./src/Makefile.in      Autoconf template for src/Makefile
+./src/alloca.c         alloca(3) source
+./src/alloca.h         alloca(3) header
+./src/binblock.c       binary block read/write functions
+./src/binblock.h       header file for binblock.c
+./src/dbs.c            DBS main source
+./src/demcut.c         DEMcut main source
+./src/getopt.c         getopt(3) source
+./src/getopt.h         getopt(3) and getopt_long(3) header
+./src/getopt1.c        getopt_long(3) source
+./src/lmpc.c           LMPC main source
+./src/lmpc.h           some definitions
+./src/lzw.c            compress DMO files (by sw)
+./src/memcmp.c         memcmp source
+./src/memmem.c         memmem source
+./src/node.c           node functions
+./src/node.h           header file for node.c
+./src/record.c         generic recording functions
+./src/record.h         header file for record.c
+./src/strsep.c         strsep source
+./src/tokenlist.in     mini template for tokenlist
+./src/tools.c          some misc. functions
+./src/tools.h          header file for tools.c
+./src/udem.c           special DEM functions
+./src/udem.h           header file for udem.c
+./src/udeml.l.in       template for udeml.l (lexer)
+./src/udemy.y.in       template for udemy.y (parser)
+./src/udm2-te1.c       temp_entity code from the specs, part 1
+./src/udm2-te2.c       temp_entity code from the specs, part 2
+./src/udm2-te3.c       temp_entity code from the specs, part 3
+./src/udm2.c           special DM2 functions
+./src/udm2.h           header file for udm2.c
+./src/udmo.c           special DMO functions
+./src/udmo.h           header file for udmo.c
+./src/ulmp.c           special LMP functions
+./src/ulmp.h           header file for ulmp.c
+./src/unlzw.c          uncompress DMO files (by sw)
+./src/uqwd.c           special QWD functions
+./src/uqwd.h           header file for uqwd.c
+./stamp-h.in           time stamp file for Makefile regeneration
+./wpurc                configuration file for wpu
+
+Copyrights:
+-----------
+cwsdpmi.exe is a free (I hope so) DPMI server for djgpp V2.0 MS-DOS binaries.
+
+The alloca files come from a public-domain implementation by D A Gwyn.
+
+The getopt files are part of the GNU C library (see COPYING.LIB).
+
+The files lzw.c and unlzw.c are hacked by Steffen Winterfeldt
+(Steffen.Winterfeldt@itp.uni-leipzig.de) and are based on the source of a
+public domain compress(1) program.
+
+The file memcmp.c contains code of the GNU C library (see COPYING.LIB).
+
+The file memmem.c contains code of the GNU C library (see COPYING.LIB).
+
+The file strsep.c contains code of the GNU C library (see COPYING.LIB).
+
+Notes:
+------
+The Win32 binaries lmpc32.exe and demcut32.exe (compiled with the Cygwin
+toolset) need cygwin1.dll. Get it from http://www.planetquake.com/demospecs/misc/win32.html
+
+Packages:
+---------
+Due to the big size of the executables I distribute LMPC in different packages:
+
+lmpc-3.3.0-s.tar.gz            Source Package
+lmpc-3.3.0-f.tar.gz            Full Package
+lmpc330d.zip                   MS-DOS Binary Package
+lmpc-3.3.0-l.tar.gz            Linux Binary Package
+lmpc330w.zip                   Win32 (Cygwin) Binary Package
+lmpc330m.zip                   Win32 (Mingw32) Binary Package
+
+Get the latest release from my Demo Specs page
+http://www.planetquake.com/demospecs
+
+Uwe Girlich, 1/23/2000
+uwe@planetquake.com

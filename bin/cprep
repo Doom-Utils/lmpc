@@ -1,0 +1,126 @@
+#!/usr/bin/perl -w
+
+use strict;
+sub ext_conv;
+
+
+my $change_files = 1;
+my $change_metafiles = 1;
+my $change_macrofiles = 1;
+
+
+my @files =
+(
+	"src/binblock__EXT__",
+	"src/dbs__EXT__",
+	"src/demcut__EXT__",
+	"src/lmpc__EXT__",
+	"src/lzw__EXT__",
+	"src/node__EXT__",
+	"src/record__EXT__",
+	"src/tools__EXT__",
+	"src/udem__EXT__",
+	"src/udm2__EXT__",
+	"src/udmo__EXT__",
+	"src/ulmp__EXT__",
+	"src/unlzw__EXT__",
+	"src/uqwd__EXT__",
+);
+
+
+my @metafiles =
+(
+	"src/Makefile.am",
+	"src/Makefile.in",
+	"src/Makefile",
+);
+
+
+
+my @macrofiles =
+(
+	"configure.in",
+	"configure",
+);
+
+
+ext_conv (".c", ".cc");
+# ext_conv (".cc", ".c");
+
+
+sub ext_conv
+{
+	my ($from_ext, $to_ext) = @_;
+
+	if ($change_files) {
+		foreach my $file (@files) {
+			( my $from_file = $file ) =~ s/__EXT__/$from_ext/;
+			( my $to_file = $file ) =~ s/__EXT__/$to_ext/;
+			print "rename $from_file => $to_file\n";
+			if (-w $from_file) {
+				rename $from_file, $to_file || 
+					die "can't rename $from_file to $to_file: $!\n";
+			}
+			else {
+				warn "$from_file is not writeable\n";
+			}
+		}
+	}
+
+	if ($change_metafiles) {
+		foreach my $metafile (@metafiles) {
+			print "change $metafile:\n";
+			if (!-w $metafile) {
+				die "$metafile is not writeable\n";
+			}
+			my $tempfile = $metafile . ".tmp";
+			open METAFILE, "$metafile" || die "can't read $metafile: $!\n";
+			my $contents = "";
+			while (<METAFILE>) {
+				$contents .= $_;
+			}
+			close METAFILE;
+			foreach my $file (@files) {
+				( my $from_file = $file ) =~ s/__EXT__/$from_ext/;
+				( my $to_file = $file ) =~ s/__EXT__/$to_ext/;
+				$from_file =~ s#src/##;
+				$to_file =~ s#src/##;
+				print "($from_file => $to_file) ";
+				$contents =~ s/$from_file([^c])/$to_file$1/g;
+			}
+			print "\n";
+			open TEMPFILE, ">$tempfile" || die "can't write $tempfile: $!\n";
+			print TEMPFILE $contents;
+			close TEMPFILE;
+			rename $tempfile, $metafile ||
+				die "can't rename $tempfile to $metafile: $!\n";
+		}
+	}
+
+	if ($change_macrofiles) {
+		foreach my $macrofile (@macrofiles) {
+			print "change $macrofile\n";
+			if (!-w $macrofile) {
+				die "$macrofile is not writeable\n";
+			}
+			my $tempfile = $macrofile . ".tmp";
+			open MACROFILE, "$macrofile" || die "can't read $macrofile: $!\n";
+			my $contents = "";
+			while (<MACROFILE>) {
+				$contents .= $_;
+			}
+			close MACROFILE;
+			if ($to_ext ne ".cc") {
+				$contents =~ s/^USE_CPLUSPLUS\s*=\s*\w+$/USE_CPLUSPLUS=no/mg;
+			}
+			if ($to_ext eq ".cc") {
+				$contents =~ s/^USE_CPLUSPLUS\s*=\s*\w+$/USE_CPLUSPLUS=yes/mg;
+			}
+			open TEMPFILE, ">$tempfile" || die "can't write $tempfile: $!\n";
+			print TEMPFILE $contents;
+			close TEMPFILE;
+			rename $tempfile, $macrofile ||
+				die "can't rename $tempfile to $macrofile: $!\n";
+		}
+	}
+}

@@ -1,0 +1,170 @@
+# wpu parse start /^([^=]+)="(.*)"/
+TYPE="program"
+
+
+DOWNCOUNT="6"
+DD1="Source Package"
+DF1="@PACKAGE@-@VERSION@.tar.gz"
+DD2="Full Package"
+DF2="@PACKAGE@-@VERSION@-f.tar.gz"
+DD3="MS-DOS Binary Package"
+DF3="@PACKAGE@@SHORTVERSION@d.zip"
+DD4="Linux Binary Package"
+DF4="@PACKAGE@-@VERSION@-l.tar.gz"
+DD5="Win32 (Cygwin) Binary Package"
+DF5="@PACKAGE@@SHORTVERSION@w.zip"
+DD6="Win32 (Mingw32) Binary Package"
+DF6="@PACKAGE@@SHORTVERSION@m.zip"
+
+
+UPCOUNT="2"
+UF1="@PACKAGE@-@VERSION@.tar.gz ../@PACKAGE@-@VERSION@-l.tar.gz ../@PACKAGE@-@VERSION@-f.tar.gz ../@PACKAGE@@SHORTVERSION@d.zip ../@PACKAGE@@SHORTVERSION@m.zip ../@PACKAGE@@SHORTVERSION@w.zip"
+UD1="@UPFTP@"
+UF2="doc/@PACKAGE@.sgml doc/@PACKAGE@.txt doc/@PACKAGE@.doc doc/@PACKAGE@.ps doc/@PACKAGE@*.html index.html README"
+UD2="@UPWWW@/@PACKAGE@-@QUALITY@"
+
+
+GOODPACK="sfdlwm"
+
+
+COMMENT_s="Source Package"
+METHOD_s="tgz"
+COMMENT_f="Full Package"
+METHOD_f="tgz"
+COMMENT_d="MS-DOS Binary Package"
+METHOD_d="zipdos"
+COMMENT_l="Linux Binary Package"
+METHOD_l="tgz"
+COMMENT_w="Win32 (Cygwin) Binary Package"
+METHOD_w="zipwin"
+COMMENT_m="Win32 (Mingw32) Binary Package"
+METHOD_m="zipwin"
+
+
+HINT_stable="This is a stable release."
+HINT_beta="This version is beta code. It contains new bugs."
+HINT_alpha="This code is considered as alpha quality. It contains many new bugs."
+HINT_private="This is a private release. Do not distribute."
+
+# wpu parse end
+
+
+# packdb start
+
+#****************************************************************************#
+#  packdb  -  package contents and file description database                 #
+#****************************************************************************#
+
+[Files]
+sldwmf	COPYING	GNU General Public Licence
+sf	COPYING.LIB	GNU Library General Public Licence
+sf	INSTALL	generic Autoconf install hints
+sf	Makefile.am	Automake template for Makefile.in
+sf	Makefile.in	Autoconf template for Makefile
+sldwmf	README	you read it
+sf	README.base	template for all READMEs
+sf	acconfig.h	Autoconf template for config.h.in
+sf	aclocal.m4	Automake macros
+sf	bin/Makefile.am	Automake template for bin/Makefile.in
+sf	bin/Makefile.in Autoconf template for bin/Makefile
+sf	bin/cprep	C to C++ conversion tool
+df	bin/cwsdpmi.exe	MS-DOS DPMI server for the MS-DOS binaries
+lf	bin/dbs	DBS Linux binary (egcs-2.91.66, glibc, x86, ELF)
+ldwmf	bin/dema	DEM Text File Analyser (Perl script)
+sf	bin/dema.in	template for DEM Text File Analyser (Perl script)
+lf	bin/demcut	DEMcut Linux binary (egcs-2.91.66, glibc, x86, ELF)
+df	bin/demcut.exe	DEMcut MS-DOS binary (egcs-2.91.66, djgpp V2.0)
+wf	bin/demcut32.exe	DEMcut Win32 binary (Cygwin B20.1)
+mf	bin/demcutm.exe	DEMcut Win32 binary (Cygwin B20.1 + Mingw32)
+ldwmf	bin/dm2cat	The DM2 file concatenator (Perl script)
+sf	bin/dm2cat.in	template for The DM2 file concatenator (Perl script)
+f	bin/extract	the specs to C extractor (Perl script)
+sf	bin/extract.in	template for the specs to C extractor (Perl script)
+sf	bin/gentok	includes tokens in yacc and lex files
+lf	bin/lmpc	LMPC Linux binary (egcs-2.91.66, glibc, x86, ELF)
+df	bin/lmpc.exe	LMPC MS-DOS binary (egcs-2.91.66, djgpp V2.0)
+wf	bin/lmpc32.exe	LMPC Win32 binary (Cygwin B20.1)
+mf	bin/lmpcm.exe	LMPC Win32 binary (Cygwin B20.1 + Mingw32 0.2)
+sf	bin/wpu	The Web Publishing Utility
+sf	config.guess	Autoconf host system guess
+sf	config.h.in	Autoconf template for config.h
+sf	config.sub	Autoconf host system name normaliser
+sf	configure	Autoconf configure script
+sf	configure.in	Autoconf template for configure
+sf	doc/COMPILE	compilation hints
+sf	doc/COMPILE-go32	cross compilation hints for go32
+sf	doc/Makefile.am	Automake template for doc/Makefile.in
+sf	doc/Makefile.in	Autoconf template for doc/Makefile
+sf	doc/lmpc.base	the main documentation file (SGML-Tools source)
+dwmf	doc/lmpc.doc	documentation (plain ASCII)
+lf	doc/lmpc.txt	documentation (formatted ASCII)
+f	doc/lmpc.ps	documentation (PostScript)
+sf	install-sh	Autoconf install script
+sf	missing	Automake help script
+sf	mkinstalldirs	make directory hierarchy
+sf	src/Makefile.am	Automake template for src/Makefile.in
+sf	src/Makefile.in	Autoconf template for src/Makefile
+sf	src/alloca.c	alloca(3) source
+sf	src/alloca.h	alloca(3) header
+sf	src/binblock.c	binary block read/write functions
+sf	src/binblock.h	header file for binblock.c
+sf	src/dbs.c	DBS main source
+sf	src/demcut.c	DEMcut main source
+sf	src/getopt.c	getopt(3) source
+sf	src/getopt.h	getopt(3) and getopt_long(3) header
+sf	src/getopt1.c	getopt_long(3) source
+sf	src/lmpc.c	LMPC main source
+sf	src/lmpc.h	some definitions
+sf	src/lzw.c	compress DMO files (by sw)
+sf	src/memcmp.c	memcmp source
+sf	src/memmem.c	memmem source
+sf	src/node.c	node functions
+sf	src/node.h	header file for node.c
+sf	src/record.c	generic recording functions
+sf	src/record.h	header file for record.c
+sf	src/strsep.c	strsep source
+sf	src/tokenlist.in	mini template for tokenlist
+sf	src/tools.c	some misc. functions
+sf	src/tools.h	header file for tools.c
+sf	src/udem.c	special DEM functions
+sf	src/udem.h	header file for udem.c
+sf	src/udeml.l.in	template for udeml.l (lexer)
+sf	src/udemy.y.in	template for udemy.y (parser)
+sf	src/udm2.c	special DM2 functions
+sf	src/udm2-te1.c	temp_entity code from the specs, part 1
+sf	src/udm2-te2.c	temp_entity code from the specs, part 2
+sf	src/udm2-te3.c	temp_entity code from the specs, part 3
+sf	src/udm2.h	header file for udm2.c
+sf	src/udmo.c	special DMO functions
+sf	src/udmo.h	header file for udmo.c
+sf	src/ulmp.c	special LMP functions
+sf	src/ulmp.h	header file for ulmp.c
+sf	src/unlzw.c	uncompress DMO files (by sw)
+sf	src/uqwd.c	special QWD functions
+sf	src/uqwd.h	header file for uqwd.c
+sf	stamp-h.in	time stamp file for Makefile regeneration
+sf	wpurc		configuration file for wpu
+
+[Copyright]
+src/getopt.c	The getopt files are part of the GNU C library (see COPYING.LIB).
+
+[Copyright]
+src/alloca.c	The alloca files come from a public-domain implementation by D A Gwyn.
+
+[Copyright]
+src/memcmp.c	The file memcmp.c contains code of the GNU C library (see COPYING.LIB).
+
+[Copyright]
+src/memmem.c	The file memmem.c contains code of the GNU C library (see COPYING.LIB).
+
+[Copyright]
+src/strsep.c	The file strsep.c contains code of the GNU C library (see COPYING.LIB).
+
+[Copyright]
+bin/cwsdpmi.exe	cwsdpmi.exe is a free (I hope so) DPMI server for djgpp V2.0 MS-DOS binaries.
+
+[Copyright]
+src/lzw.c	The files lzw.c and unlzw.c are hacked by Steffen Winterfeldt (Steffen.Winterfeldt@itp.uni-leipzig.de) and are based on the source of a public domain compress(1) program.
+
+[Note]
+bin/lmpc32.exe	The Win32 binaries lmpc32.exe and demcut32.exe (compiled with the Cygwin toolset) need cygwin1.dll. Get it from @HOMEURL@/misc/win32.html
